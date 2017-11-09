@@ -1,44 +1,156 @@
 Sub AllTheThings()
-Application.ScreenUpdating = False
-Call changecolourCall addborderCall fixDateCall fixAddressblock1Call fixAddressblock2Call fixAddressblock3Call unhideNumbersCall alignLastColTextCall alignTableColsCall JustifyTextAlignment
-Application.ScreenUpdating = True
+	Application.ScreenUpdating = False
+	Call changecolour
+	Call addborder
+	Call fixDate
+	Call fixAddressblock1
+	Call fixAddressblock2
+	Call fixAddressblock3
+	Call unhideNumbers
+	Call alignLastColText
+	Call alignTableCols
+	Call JustifyTextAlignment
+	Application.ScreenUpdating = True
 End Sub
 
-Sub changecolour()''#1' change colour of all text to black'''ActiveDocument.Range.SelectActiveDocument.Range.Font.Color = -587137025
-   End Sub
+Sub changecolour()''#1' change colour of all text to black'
+	ActiveDocument.Range.Font.Color = -587137025
+End Sub
 
-Sub addborder()''#2' add border to two lines on first page'
-    With ActiveDocument.Content.Find    .Text = "HER MAJESTY THE QUEEN^p^pRespondent^p^p"    .Forward = True    .Execute    If .Found = True Then .Parent.Select    End With        With Selection.Borders(wdBorderBottom)        .LineStyle = Options.DefaultBorderLineStyle        .LineWidth = Options.DefaultBorderLineWidth        .Color = Options.DefaultBorderColor    End With        With ActiveDocument.Content.Find    .Text = "RESPONDENT'S LIST OF DOCUMENTS^p(Partial Disclosure)^p^p"    .Forward = True    .Execute    If .Found = True Then .Parent.Select    End With        With Selection.Borders(wdBorderBottom)        .LineStyle = Options.DefaultBorderLineStyle        .LineWidth = Options.DefaultBorderLineWidth        .Color = Options.DefaultBorderColor    End WithEnd Sub
+Sub addborder()
+'#2' add border to two lines on first page'
+	With ActiveDocument.Content.Find
+		.Text = "HER MAJESTY THE QUEEN^p^pRespondent^p^p"
+		.Forward = True
+		.Execute
+		If .Found = True Then .Parent.Select
+	End With
+
+	With Selection.Borders(wdBorderBottom)
+		.LineStyle = Options.DefaultBorderLineStyle
+		.LineWidth = Options.DefaultBorderLineWidth
+		.Color = Options.DefaultBorderColor
+	End With
+
+	With ActiveDocument.Content.Find
+		.Text = "RESPONDENT'S LIST OF DOCUMENTS^p(Partial Disclosure)^p^p"
+		.Forward = True
+		.Execute
+		If .Found = True Then .Parent.Select
+	End With
+
+	With Selection.Borders(wdBorderBottom)
+		.LineStyle = Options.DefaultBorderLineStyle
+		.LineWidth = Options.DefaultBorderLineWidth
+		.Color = Options.DefaultBorderColor
+	End With
+End Sub
 
 Sub fixDate()
 '#3'find and replace date section with a slightly different one
-    With ActiveDocument.Content.Find        .MatchWildcards = True        .Text = "DATED at Halifax, Nova Scotia*" & Year(Date)        .Forward = True        .Execute        If .Found = True Then .Parent.Text = "DATED at Halifax, Nova Scotia on " & MonthName(Month(Date)) & " ___ " & Year(Date)    End With
+    With ActiveDocument.Content.Find
+		.MatchWildcards = True
+		.Text = "DATED at Halifax, Nova Scotia*" & Year(Date)
+		.Forward = True
+		.Execute
+		If .Found = True Then .Parent.Text = "DATED at Halifax, Nova Scotia on " & MonthName(Month(Date)) & " ___ " & Year(Date)
+	End With
 End Sub
 
 Sub fixAddressblock1()
 '#4'find and replace AGC address section with a slightly different one
-    With ActiveDocument.Content.Find        .Text = "Department of Justice Canada^pAtlantic Regional Office^pTax Law Services Section^pSuite 1400, Duke Tower^p5251 Duke Street^pHalifax, Nova Scotia^pB3J 1P3^pFax:  (902) 426-8802^p^p"        .Forward = True        .Execute        If .Found = True Then .Parent.Text = "Department of Justice Canada" & Chr(13) & "Atlantic Regional Office" & Chr(13) & "Tax Law Services Section" & Chr(13) & "Suite 1400, Duke Tower" & Chr(13) & "5251 Duke Street" & Chr(13) & "Halifax, NS   B3J 1P3" & Chr(13) & "Fax:  (902) 426-8802" & Chr(13) & Chr(13)    End With
+    With ActiveDocument.Content.Find
+		.Text = "Department of Justice Canada^pAtlantic Regional Office^pTax Law Services Section^pSuite 1400, Duke Tower^p5251 Duke Street^pHalifax, Nova Scotia^pB3J 1P3^pFax:  (902) 426-8802^p^p"
+		.Forward = True 
+		.Execute
+		If .Found = True Then .Parent.Text = "Department of Justice Canada" & Chr(13) & "Atlantic Regional Office" & Chr(13) & "Tax Law Services Section" & Chr(13) & "Suite 1400, Duke Tower" & Chr(13) & "5251 Duke Street" & Chr(13) & "Halifax, NS   B3J 1P3" & Chr(13) & "Fax:  (902) 426-8802" & Chr(13) & Chr(13)
+	End With
 End Sub
 
 Sub fixAddressblock2()
 '#4-2'find and replace Registrar address section with a slightly different one
-    With ActiveDocument.Content.Find        .Text = "Tax Court of Canada^p200 Kent Street, 3rd Floor^pOttawa, Ontario^pK1A 0M1"        .Forward = True        .Execute        If .Found = True Then .Parent.Text = "Tax Court of Canada" & Chr(13) & "200 Kent Street, 3rd Floor" & Chr(13) & "Ottawa, ON   K1A 0M1"    End With
+    With ActiveDocument.Content.Find
+		.Text = "Tax Court of Canada^p200 Kent Street, 3rd Floor^pOttawa, Ontario^pK1A 0M1"
+		.Forward = True 
+		.Execute
+		If .Found = True Then .Parent.Text = "Tax Court of Canada" & Chr(13) & "200 Kent Street, 3rd Floor" & Chr(13) & "Ottawa, ON   K1A 0M1"
+	End With
 End Sub
 
 Sub fixAddressblock3()
 '#4-3'look to see if there is an additional recipient (there should be at least one) and format the address block
-Dim addrTable As TableDim addrTableCur As TableDim rng1 As Word.RangeDim rng2 As Word.RangeDim prov As StringDim provAbrv As StringDim provArray(12) As StringDim provAbrvArray(12) As String
-'find instance of recipient "AND TO:" and work within that tableFor i = 1 To ActiveDocument.Tables.Count    Set addrTable = ActiveDocument.Tables(i)        With addrTable.Range.Cells(1).Range.Find        .Text = "AND TO"        .Forward = True        .Execute        If .Found = True Then Set addrTableCur = addrTable        If (Not (.Found = True)) Then GoTo Nexti    End With
+Dim addrTable As Table
+Dim addrTableCur As Table
+Dim rng1 As Word.Range
+Dim rng2 As Word.Range
+Dim prov As String
+Dim provAbrv As String
+Dim provArray(12) As String
+Dim provAbrvArray(12) As String
+'find instance of recipient "AND TO:" and work within that table
+For i = 1 To ActiveDocument.Tables.Count
+Set addrTable = ActiveDocument.Tables(i)
+With addrTable.Range.Cells(1).Range.Find
+.Text = "AND TO"
+.Forward = True
+.Execute
+If .Found = True Then Set addrTableCur = addrTable
+If (Not (.Found = True)) Then GoTo Next i
+End With
+
 Set rng1 = addrTableCur.Cell(1, 2).Range.Characters(1)rng1.MoveEnd wdCharacter, addrTableCur.Cell(1, 2).Range.Characters.Count - 2
 Set rng2 = addrTableCur.Cell(2, 2).Range.Characters(1)rng2.MoveEnd wdCharacter, addrTableCur.Cell(1, 2).Range.Characters.Count - 2
+
 'If the name of the recipient appears twice, highlight the second occurrence for review
-If rng1.Text = rng2.Text Then    rng2.HighlightColorIndex = wdYellowEnd If
+If rng1.Text = rng2.Text Then
+rng2.HighlightColorIndex = wdYellow
+End If
+
 'Search for Province and replace with abbreviation
-provArray(0) = "Alberta" & Chr(13)provArray(1) = "British Columbia" & Chr(13)provArray(2) = "Manitoba" & Chr(13)provArray(3) = "New Brunswick" & Chr(13)provArray(4) = "Newfoundland and Labrador" & Chr(13)provArray(5) = "Northwest Territories" & Chr(13)provArray(6) = "Nova Scotia" & Chr(13)provArray(7) = "Nunavut" & Chr(13)provArray(8) = "Ontario" & Chr(13)provArray(9) = "Prince Edward Island" & Chr(13)provArray(10) = "Quebec" & Chr(13)provArray(11) = "Saskatchewan" & Chr(13)provArray(12) = "Yukon" & Chr(13)
-provAbrvArray(0) = "AB   "provAbrvArray(1) = "BC   "provAbrvArray(2) = "MB   "provAbrvArray(3) = "NB   "provAbrvArray(4) = "NL   "provAbrvArray(5) = "NT   "provAbrvArray(6) = "NS   "provAbrvArray(7) = "NU   "provAbrvArray(8) = "ON   "provAbrvArray(9) = "PE   "provAbrvArray(10) = "QC   "provAbrvArray(11) = "SK   "provAbrvArray(12) = "YT   "
-'find out if French or any other names should be added!
-For j = 0 To 12       With addrTable.Range.Cells(4).Range.Find        .Text = provArray(j)        .Forward = True        .Execute        If .Found = True Then .Parent.Select        If (Not (.Found = True)) Then GoTo nextj    End With    Selection.Text = provAbrvArray(j)    nextj:Next j
-Nexti:Next i
+provArray(0) = "Alberta" & Chr(13)
+provArray(1) = "British Columbia" & Chr(13)
+provArray(2) = "Manitoba" & Chr(13)
+provArray(3) = "New Brunswick" & Chr(13)
+provArray(4) = "Newfoundland and Labrador" & Chr(13)
+provArray(5) = "Northwest Territories" & Chr(13)
+provArray(6) = "Nova Scotia" & Chr(13)
+provArray(7) = "Nunavut" & Chr(13)
+provArray(8) = "Ontario" & Chr(13)
+provArray(9) = "Prince Edward Island" & Chr(13)
+provArray(10) = "Quebec" & Chr(13)
+provArray(11) = "Saskatchewan" & Chr(13)
+provArray(12) = "Yukon" & Chr(13)
+provAbrvArray(0) = "AB   "
+provAbrvArray(1) = "BC   "
+provAbrvArray(2) = "MB   "
+provAbrvArray(3) = "NB   "
+provAbrvArray(4) = "NL   "
+provAbrvArray(5) = "NT   "
+provAbrvArray(6) = "NS   "
+provAbrvArray(7) = "NU   "
+provAbrvArray(8) = "ON   "
+provAbrvArray(9) = "PE   "
+provAbrvArray(10) = "QC   "
+provAbrvArray(11) = "SK   "
+provAbrvArray(12) = "YT   "
+
+'nts for later: find out if French or any other names should be added!
+
+For j = 0 To 12
+With addrTable.Range.Cells(4).Range.Find
+.Text = provArray(j)
+.Forward = True
+.Execute
+If .Found = True Then .Parent.Select
+If (Not (.Found = True)) Then GoTo next j
+End With
+Selection.Text = provAbrvArray(j)
+
+nextj:
+Next j
+
+Nexti:
+Next i
 End Sub
 
 Sub unhideNumbers()
