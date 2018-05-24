@@ -1,0 +1,563 @@
+Option Explicit
+Private tCount As Integer
+Private doc As Document
+Private docRng As Range
+Private lodTable As Table
+Private lodRng As Range
+Private rw As Integer
+Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+
+Sub LODsetValues()
+
+Set doc = ActiveDocument
+Set docRng = ActiveDocument.Range
+tCount = doc.Tables.Count
+Set lodTable = doc.Tables(tCount - 1)
+Set lodRng = lodTable.Range
+
+End Sub
+Sub FinalizeLOD(rNum As Integer) ', tvalues() As Variant)
+
+Application.ScreenUpdating = False
+
+Call LODsetValues
+Call pasteTable
+rw = rNum
+'
+Application.ScreenUpdating = True
+
+End Sub
+Sub FormatLOD()
+
+Application.ScreenUpdating = False
+
+Call LODsetValues
+
+Call changecolour
+Call addborder
+Call fixDate
+Call fixAddressblock1
+Call fixAddressblock2
+Call fixAddressblock3
+Call fixSpacing(lodRng)
+Call JustReturns
+Call unhideNumbers
+Call alignLODText
+Call alignTableCols
+Call JustifyTextAlignment
+'
+Call formatList
+Call formatList
+'
+ActiveDocument.Save
+'
+Application.ScreenUpdating = True
+
+End Sub
+Sub changecolour()
+'
+'#1
+' change colour of all text to black
+
+docRng.Font.Color = -587137025
+
+   
+End Sub
+Sub addborder()
+'
+'#2
+' add border to two lines on first page
+
+Dim rng As Range
+
+    With doc.Content.Find
+        .MatchWildcards = False
+        .Text = "HER MAJESTY THE QUEEN" & Chr(13) & Chr(13) & "Respondent" & Chr(13) & Chr(13)
+        .Forward = True
+        .Execute
+        If .Found = True Then Set rng = .Parent
+    End With
+
+    With rng.Borders(wdBorderBottom)
+        .LineStyle = Options.DefaultBorderLineStyle
+        .LineWidth = Options.DefaultBorderLineWidth
+        .Color = Options.DefaultBorderColor
+    End With
+
+    With doc.Content.Find
+        .MatchWildcards = False
+        .Text = "RESPONDENT'S LIST OF DOCUMENTS" & Chr(13) & "(Partial Disclosure)" & Chr(13) & Chr(13)
+        .Forward = True
+        .Execute
+        If .Found = True Then Set rng = .Parent
+    End With
+    
+    With rng.Borders(wdBorderBottom)
+        .LineStyle = Options.DefaultBorderLineStyle
+        .LineWidth = Options.DefaultBorderLineWidth
+        .Color = Options.DefaultBorderColor
+    End With
+End Sub
+Sub fixDate()
+
+'#3
+'find and replace date section with a slightly different one
+
+    With doc.Content.Find
+        .MatchWildcards = True
+        .Text = "DATED at Halifax, Nova Scotia*" & Year(Date)
+        .Forward = True
+        .Execute
+        If .Found = True Then .Parent.Text = "DATED at Halifax, Nova Scotia on " & MonthName(Month(Date)) & " ___ " & Year(Date)
+    End With
+
+End Sub
+Sub fixAddressblock1()
+
+'#4
+'find and replace AGC address section with a slightly different one
+
+    With doc.Content.Find
+        .Text = "Department of Justice Canada^pAtlantic Regional Office^pTax Law Services Section^pSuite 1400, Duke Tower^p5251 Duke Street^pHalifax, Nova Scotia^pB3J 1P3^pFax:  (902) 426-8802^p^p"
+        .Forward = True
+        .Execute
+        If .Found = True Then .Parent.Text = "Department of Justice Canada" & Chr(13) & "Atlantic Regional Office" & Chr(13) & "Tax Law Services Section" & Chr(13) & "Suite 1400, Duke Tower" & Chr(13) & "5251 Duke Street" & Chr(13) & "Halifax, NS   B3J 1P3" & Chr(13) & "Fax:  (902) 426-8802" & Chr(13) & Chr(13)
+    End With
+
+End Sub
+Sub fixAddressblock2()
+
+'#4-2
+'find and replace Registrar address section with a slightly different one
+
+    With doc.Content.Find
+        .Text = "Tax Court of Canada^p200 Kent Street, 3rd Floor^pOttawa, Ontario^pK1A 0M1"
+        .Forward = True
+        .Execute
+        If .Found = True Then .Parent.Text = "Tax Court of Canada" & Chr(13) & "200 Kent Street, 3rd Floor" & Chr(13) & "Ottawa, ON   K1A 0M1"
+    End With
+
+End Sub
+Sub fixAddressblock3()
+
+'#4-3
+'look to see if there is an additional recipient (there should be at least one) and format the address block
+
+Dim addrTable As Table
+Dim addrTableCur As Table
+Dim rng1 As Word.Range
+Dim rng2 As Word.Range
+Dim prov As String
+Dim provAbrv As String
+Dim provArray(12) As String
+Dim provAbrvArray(12) As String
+Dim i As Integer
+Dim j As Integer
+
+
+'find instance of recipient "AND TO:" and work within that table
+For i = 3 To tCount - 2
+    Set addrTable = ActiveDocument.Tables(i)
+        With addrTable.Range.Cells(1).Range.Find
+        .Text = "AND TO"
+        .Forward = True
+        .Execute
+        If .Found = True Then Set addrTableCur = addrTable
+        If (Not (.Found = True)) Then GoTo Nexti
+    End With
+
+Set rng1 = addrTableCur.Cell(1, 2).Range.Characters(1)
+rng1.MoveEnd wdCharacter, addrTableCur.Cell(1, 2).Range.Characters.Count - 2
+
+Set rng2 = addrTableCur.Cell(2, 2).Range.Characters(1)
+rng2.MoveEnd wdCharacter, addrTableCur.Cell(1, 2).Range.Characters.Count - 2
+
+'If the name of the recipient appears twice, highlight the second occurrence for review
+
+If rng1.Text = rng2.Text Then
+    rng2.HighlightColorIndex = wdYellow
+End If
+
+'Search for Province and replace with abbreviation
+
+provArray(0) = "Alberta" & Chr(13)
+provArray(1) = "British Columbia" & Chr(13)
+provArray(2) = "Manitoba" & Chr(13)
+provArray(3) = "New Brunswick" & Chr(13)
+provArray(4) = "Newfoundland and Labrador" & Chr(13)
+provArray(5) = "Northwest Territories" & Chr(13)
+provArray(6) = "Nova Scotia" & Chr(13)
+provArray(7) = "Nunavut" & Chr(13)
+provArray(8) = "Ontario" & Chr(13)
+provArray(9) = "Prince Edward Island" & Chr(13)
+provArray(10) = "Quebec" & Chr(13)
+provArray(11) = "Saskatchewan" & Chr(13)
+provArray(12) = "Yukon" & Chr(13)
+
+provAbrvArray(0) = "AB   "
+provAbrvArray(1) = "BC   "
+provAbrvArray(2) = "MB   "
+provAbrvArray(3) = "NB   "
+provAbrvArray(4) = "NL   "
+provAbrvArray(5) = "NT   "
+provAbrvArray(6) = "NS   "
+provAbrvArray(7) = "NU   "
+provAbrvArray(8) = "ON   "
+provAbrvArray(9) = "PE   "
+provAbrvArray(10) = "QC   "
+provAbrvArray(11) = "SK   "
+provAbrvArray(12) = "YT   "
+
+'find out if French or any other names should be added!
+
+For j = 0 To 12
+   
+    With addrTable.Range.Cells(4).Range.Find
+        .Text = provArray(j)
+        .Forward = True
+        .Execute
+        If .Found = True Then .Parent.Select
+        If (Not (.Found = True)) Then GoTo nextj
+    End With
+    Selection.Text = provAbrvArray(j)
+    
+nextj:
+Next j
+
+Nexti:
+Next i
+
+
+End Sub
+Sub unhideNumbers()
+
+'unhide numbers in column 3 of LOD
+
+lodTable.Columns(3).Select
+
+    With Selection.Font
+        If .Hidden = True Then .Hidden = False
+        If .Hidden = False Then .Bold = True
+    End With
+
+End Sub
+Sub alignLODText()
+
+With lodRng
+    .ParagraphFormat.Alignment = wdAlignParagraphLeft
+    .Cells.VerticalAlignment = wdCellAlignVerticalTop
+End With
+
+End Sub
+Sub alignTableCols()
+'
+'#7
+' align table column width
+'
+'
+
+Dim schedBTable As Range
+Set schedBTable = ActiveDocument.Tables(tCount).Range
+
+    With lodRng.ParagraphFormat
+        .LineSpacingRule = wdLineSpaceSingle
+        .Alignment = wdAlignParagraphLeft
+    End With
+
+With lodRng
+    .Columns(2).SetWidth _
+    ColumnWidth:=InchesToPoints(4.06), _
+    RulerStyle:=wdAdjustNone
+    
+    .Columns(3).SetWidth _
+    ColumnWidth:=InchesToPoints(0.5), _
+    RulerStyle:=wdAdjustNone
+    
+    .Columns(4).SetWidth _
+    ColumnWidth:=InchesToPoints(1.75), _
+    RulerStyle:=wdAdjustNone
+End With
+
+With schedBTable
+    .Columns(2).SetWidth _
+    ColumnWidth:=InchesToPoints(4.06), _
+    RulerStyle:=wdAdjustNone
+    
+    .Columns(3).SetWidth _
+    ColumnWidth:=InchesToPoints(0.5), _
+    RulerStyle:=wdAdjustNone
+    
+    .Columns(4).SetWidth _
+    ColumnWidth:=InchesToPoints(1.75), _
+    RulerStyle:=wdAdjustNone
+End With
+
+
+End Sub
+Sub JustifyTextAlignment()
+
+'Justify those few sections where it's not justified but maybe should be?
+
+Dim rng As Range
+
+    With doc.Content.Find
+    .Text = "TAKE NOTICE that the documents referred to in Schedule A below may be inspected and copies taken at 5251 Duke Street, Suite 1400, Halifax, Nova Scotia, on any weekday, by appointment, between the hours of 8:30 a.m. and 4:30 p.m."
+    .Forward = True
+    .Execute
+    If .Found = True Then Set rng = .Parent
+    End With
+    
+    rng.ParagraphFormat.Alignment = wdAlignParagraphJustify
+
+    With doc.Content.Find
+    .Text = "Documents of which the Respondent has knowledge but which are not in the control or power of the Respondent:"
+    .Forward = True
+    .Execute
+    If .Found = True Then Set rng = .Parent
+    End With
+    
+    rng.ParagraphFormat.Alignment = wdAlignParagraphJustify
+
+End Sub
+
+Sub pasteTable()
+
+Dim i As Integer, j As Integer, k As Integer
+Dim pasteRng As Range
+
+
+'i = lodTable.Rows.Count
+
+j = ActiveDocument.Tables.Count - 1
+
+lodTable.Rows(2).Select
+'Selection.InsertRowsBelow rw - 1
+
+'i = lodTable.Rows.Count
+'
+'    With ActiveDocument
+'        Set pasteRng = .Range(Start:=.Tables(j).Cell(2, 2).Range.Start, _
+'            End:=.Tables(j).Cell(i, 4).Range.End)
+'    End With
+'
+'For k = 1 To rw * 3
+'    pasteRng.Cells(k).Range.Text = tVals(k)
+'Next k
+
+'pasteRng.PasteAndFormat (wdPasteDefault)
+
+End Sub
+Sub ReplaceReturns(rng As Range)
+
+    rng.Find.ClearFormatting
+    rng.Find.Replacement.ClearFormatting
+    With rng.Find
+        .Text = Chr(11)
+        .Replacement.Text = "^p"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = False
+        .MatchWholeWord = False
+        .MatchWildcards = False
+        .MatchSoundsLike = False
+        .MatchAllWordForms = False
+    End With
+    rng.Find.Execute Replace:=wdReplaceAll
+End Sub
+Sub JustReturns()
+Call ReplaceReturns(lodTable.Range)
+
+End Sub
+Sub newLineTest()
+Dim rng As Range
+Set rng = ActiveDocument.Tables(4).Range
+
+    With rng.Find
+        .Text = Chr(11)
+        .Replacement.Text = "^p"
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = False
+        .MatchWholeWord = False
+        .MatchWildcards = False
+        .MatchSoundsLike = False
+        .MatchAllWordForms = False
+    End With
+    rng.Find.Execute Replace:=wdReplaceAll
+End Sub
+Sub fixSpacing(rng As Range)
+
+        With rng.ParagraphFormat
+        .SpaceBefore = 6
+        .SpaceBeforeAuto = False
+        .SpaceAfter = 6
+        .SpaceAfterAuto = False
+        .LineSpacingRule = wdLineSpaceSingle
+        .Alignment = wdAlignParagraphLeft
+        .NoLineNumber = False
+        .Hyphenation = True
+        .CollapsedByDefault = False
+    End With
+
+End Sub
+Sub formatList()
+
+Dim rng1 As Range
+Dim rng2 As Range
+Dim nRng As Range
+Dim rNum As Integer
+Dim pCount As Integer
+Dim i As Integer
+Dim k As Integer
+Dim lvlNum As Integer
+
+rNum = lodTable.Rows.Count
+
+For i = 2 To rNum
+    Set rng1 = lodTable.Rows(i).Cells(2).Range
+    pCount = rng1.Paragraphs.Count
+    For k = 1 To pCount
+        lvlNum = 0
+        Set rng2 = lodTable.Rows(i).Cells(2).Range.Paragraphs(k).Range
+        Set nRng = setRange(rng2.Paragraphs(1), "\[" & "*\]", 0, 0)
+        If Not (nRng Is Nothing) Then
+            If Not nRng.Text = "[lvl0]" Then
+                nRng.Font.Bold = True
+                If BulletYN(rng2) = True Then
+                    lvlNum = GetlvlNumber(rng2)
+                    Call AddBullets(lvlNum, rng2)
+                End If
+            End If
+        End If
+    Next k
+Next i
+
+Call lvlMarkers(lodTable.Range)
+
+End Sub
+Function setRange(searchRange As Object, searchStr As String, startMove As Integer, endMove As Integer) As Range
+    With searchRange.Range.Find
+        .Text = searchStr
+        .Replacement.Text = ""
+        .Forward = True
+        .Wrap = wdFindContinue
+        .Format = False
+        .MatchCase = False
+        .MatchWholeWord = False
+        .MatchWildcards = True
+        .MatchSoundsLike = False
+        .MatchAllWordForms = False
+        .Execute
+        If .Found = True Then Set setRange = .Parent
+    End With
+    If Not setRange Is Nothing Then
+        setRange.MoveStart Unit:=wdCharacter, Count:=startMove
+        setRange.MoveEnd Unit:=wdCharacter, Count:=endMove
+    End If
+    
+End Function
+Sub AddBullets(num As Integer, bRng As Range)
+'
+' AddBulletTest2 Macro
+'
+'
+    With ListGalleries(wdBulletGallery).ListTemplates(2).listLevels(1)
+        .NumberFormat = ChrW(61623)
+        .TrailingCharacter = wdTrailingTab
+        .NumberStyle = wdListNumberStyleBullet
+        .NumberPosition = InchesToPoints(0.25)
+        .Alignment = wdListLevelAlignLeft
+        .TextPosition = InchesToPoints(0.5)
+        .TabPosition = wdUndefined
+        .ResetOnHigher = 0
+        .StartAt = 1
+        With .Font
+            .Bold = wdUndefined
+            .Italic = wdUndefined
+            .StrikeThrough = wdUndefined
+            .Subscript = wdUndefined
+            .Superscript = wdUndefined
+            .Shadow = wdUndefined
+            .Outline = wdUndefined
+            .Emboss = wdUndefined
+            .Engrave = wdUndefined
+            .AllCaps = wdUndefined
+            .Hidden = wdUndefined
+            .Underline = wdUndefined
+            .Color = wdUndefined
+            .Size = wdUndefined
+            .Animation = wdUndefined
+            .DoubleStrikeThrough = wdUndefined
+            .name = "Symbol"
+        End With
+        .LinkedStyle = ""
+    End With
+    ListGalleries(wdBulletGallery).ListTemplates(2).name = ""
+    bRng.ListFormat.ApplyListTemplateWithLevel ListTemplate:= _
+        ListGalleries(wdBulletGallery).ListTemplates(2), ContinuePreviousList:= _
+        False, ApplyTo:=wdListApplyToWholeList, DefaultListBehavior:= _
+        wdWord10ListBehavior
+
+    bRng.SetListLevel Level:=num
+
+    With bRng.ParagraphFormat
+        .SpaceBefore = 3
+        .SpaceBeforeAuto = False
+        .SpaceAfter = 3
+        .SpaceAfterAuto = False
+        .FirstLineIndent = InchesToPoints(-0.18)
+        .LeftIndent = InchesToPoints(0.18 * num)
+        .SpaceBeforeAuto = False
+        .SpaceAfterAuto = False
+    End With
+
+    bRng.ParagraphFormat.TabStops(InchesToPoints(0)).Position = _
+        InchesToPoints(0.18 * num)
+              
+End Sub
+Function GetlvlNumber(pRng As Range) As Integer
+
+Dim lvlrng As Range
+Dim str As String
+
+Set lvlrng = setRange(pRng.Paragraphs(1), "\[lvl" & "*\]", 0, 0)
+'If Not lvlrng = Nothing Then
+    str = Mid(lvlrng.Text, 5, Len(lvlrng.Text))
+    str = Mid(str, 1, Len(str) - 1)
+    GetlvlNumber = CInt(str)
+'End If
+    
+End Function
+
+Function BulletYN(pRng As Range) As Boolean
+
+With pRng.Find
+    .Text = "\[lvl" & "*\]"
+    .MatchWholeWord = True
+    .MatchWildcards = True
+    .Wrap = wdFindStop
+    .Execute
+    BulletYN = .Found
+End With
+
+End Function
+Sub lvlMarkers(tRng As Range)
+
+    tRng.Find.ClearFormatting
+    tRng.Find.Replacement.ClearFormatting
+    With tRng.Find
+        .Text = "\[lvl" & "*\]"
+        .Replacement.Text = ""
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = False
+        .MatchWholeWord = False
+        .MatchAllWordForms = False
+        .MatchSoundsLike = False
+        .MatchWildcards = True
+    End With
+    tRng.Find.Execute Replace:=wdReplaceAll
+End Sub

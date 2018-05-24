@@ -1,0 +1,484 @@
+Option Explicit
+Private doc As Document
+Private filePath As String
+
+Private LOName As String
+Private LOFirst As String
+Private LOStr As String
+Private LOemail As String
+
+Private ltype As String
+Private lName As String
+Private ifms As String
+Private sType1 As String
+Private sType2 As String
+
+Private saveStr As String
+Private EIDsub As String
+Private emailSub As String
+Private addressStr As String
+Sub SEND_SetValues(docType As String, counsel As String, LO As String, loEmailStr As String, saveName As String, EIDsubj As String, emailSubj As String, sendType1 As String, sendType2 As String, ifmsNum As String, fullAddressStr As String)
+    Set doc = ActiveDocument
+
+    ltype = docType
+    lName = counsel
+    LOStr = LO
+    LOName = LetterFormatting.getLOFullName(LOStr)
+    LOFirst = LetterFormatting.getLOfirstShort(LetterFormatting.getLOfirstName(LOStr))
+    LOemail = loEmailStr
+    saveStr = saveName
+    EIDsub = EIDsubj
+    emailSub = emailSubj
+    sType1 = noSpace(sendType1)
+    sType2 = noSpace(sendType2)
+    ifms = ifmsNum
+    addressStr = fullAddressStr
+    filePath = ActiveDocument.fullname
+    Call PrintAndSend
+End Sub
+Sub PrintAndSend()
+    If ltype = "TRANSFER" Or ltype = "ServingLOD" Then
+        Call sendEmailLO
+    End If
+    Call printLetter
+    Application.Run ("sendby" & sType1)
+    Application.Run ("sendby" & sType2)
+End Sub
+Sub sendEmailLO()
+
+   Dim OlApp As Outlook.Application
+   Dim ObjMail As Outlook.MailItem
+
+   Set OlApp = Outlook.Application
+   Set ObjMail = OlApp.CreateItem(olMailItem)
+
+   ObjMail.To = LOemail
+   ObjMail.subject = getLOemailSubject
+   ObjMail.Display
+   'You now have the default signature within ObjMail.HTMLBody.
+   'Add this after adding strHTMLBody
+   ObjMail.HTMLBody = getLOemailText & ObjMail.HTMLBody
+   ObjMail.Attachments.Add filePath
+
+   'ObjMail.Send 'send immediately or
+   'ObjMail.close olSave 'save as draft
+   Set OlApp = Nothing
+
+End Sub
+Sub sendEmailAMY()
+
+   Dim OlApp As Outlook.Application
+   Dim ObjMail As Outlook.MailItem
+   Dim strHTMLBody As String
+
+   Set OlApp = Outlook.Application
+   Set ObjMail = OlApp.CreateItem(olMailItem)
+   
+   strHTMLBody = "<BODY style=font-size:11pt;font-family:Calibri>Hello Amy, <p> <p>" _
+            & "I've attached a letter that needs your signature. If you could add it to the attached file whenever you have a chance, that would be appreciated!<p><p>Thanks!</BODY>"
+
+   ObjMail.To = "amy.kendell@justice.gc.ca"
+   ObjMail.subject = getLOemailSubject
+   ObjMail.Display
+   'You now have the default signature within ObjMail.HTMLBody.
+   'Add this after adding strHTMLBody
+   ObjMail.HTMLBody = strHTMLBody & ObjMail.HTMLBody
+   ObjMail.Attachments.Add filePath
+
+   'ObjMail.Send 'send immediately or
+   'ObjMail.close olSave 'save as draft
+   Set OlApp = Nothing
+
+End Sub
+Sub sendEmailSAM(attStr As String)
+
+   Dim OlApp As Outlook.Application
+   Dim ObjMail As Outlook.MailItem
+   Dim strHTMLBody As String
+
+   Set OlApp = Outlook.Application
+   Set ObjMail = OlApp.CreateItem(olMailItem)
+   
+   strHTMLBody = "<BODY style=font-size:11pt;font-family:Calibri>Hello Sam, <p> <p>" _
+            & "I've attached a copy of the EID form I just made for an Eprint job. Let me know if you have any questions.<p><p>Thanks!</BODY>"
+
+   ObjMail.To = "Samantha.Boorman@justice.gc.ca"
+   ObjMail.subject = "Eprint - " & emailSub 'find out why this was blank last time
+   ObjMail.Display
+   'You now have the default signature within ObjMail.HTMLBody.
+   'Add this after adding strHTMLBody
+   ObjMail.HTMLBody = strHTMLBody & ObjMail.HTMLBody
+   ObjMail.Attachments.Add attStr
+
+   'ObjMail.Send 'send immediately or
+   'ObjMail.close olSave 'save as draft
+   Set OlApp = Nothing
+
+End Sub
+Function getLOemailText() As String
+    If ltype = "servingLOD" Then
+    getLOemailText = "<BODY style=font-size:11pt;font-family:Calibri>Hello " & LOFirst & ", <p><p>" _
+            & "Please find attached a copy of the service letter, e-filed List of Documents, and Tax Court confirmation in respect of the above-noted appeal for your records.<p><p>" & _
+            "Regards,<p></BODY>"
+    ElseIf ltype = "TRANSFER" Then
+    getLOemailText = "<BODY style=font-size:11pt;font-family:Calibri>Hello " & LOFirst & ", <p><p>" _
+            & "Please find attached a copy of our Transfer Letter for your records.<p><p>" & _
+            "Regards,<p></BODY>"
+    End If
+End Function
+Function getLOemailSubject() As String
+    If ltype = "servingLOD" Then
+        getLOemailSubject = "Serving LOD - " & emailSub
+    ElseIf ltype = "TRANSFER" Then
+        getLOemailSubject = "Transfer - " & emailSub
+    End If
+End Function
+Sub printLetter()
+    Dim i As Integer
+    
+'    Call AddWaterMark
+'    ActiveDocument.PrintOut copies:=1
+'    Call RemoveWaterMark
+    
+    If ltype = "servingLOD" Or ltype = "TRANSFER" Then
+        doc.Paragraphs(doc.Paragraphs.Count).Range.Text = ""
+    End If
+    
+    doc.Save
+    
+    If Not lName = "Maeve Baird" Or lName = "Amy Kendell" Then
+        i = 1
+    ElseIf lName = "Maeve Baird" Then
+        Call addSignature
+        i = 2
+    ElseIf lName = "Amy Kendell" Then
+        Call sendEmailAMY
+        i = 0
+    End If
+    
+    ActiveDocument.PrintOut copies:=i
+End Sub
+Function getSigRange() As Range
+    Dim rng As Range
+    
+    Set rng = LetterFormatting.setRange(doc, "Yours truly,", 0, 0)
+    rng.MoveEnd Unit:=wdParagraph, Count:=4
+    rng.MoveStart Unit:=wdParagraph, Count:=1
+    Set getSigRange = rng
+End Function
+Sub addSignature()
+    Dim rng As Range
+    Dim img As String
+    
+    img = "C:\Users\evasmith\Desktop\LetterFiles\image002.png"
+    
+    Set rng = getSigRange
+    rng.Text = Chr(13)
+    rng.InlineShapes.AddPicture filename:= _
+            img, LinkToFile:=False, _
+            SaveWithDocument:=True
+End Sub
+Sub AddWaterMark()
+    Dim strWMName As String
+     
+    On Error GoTo ErrHandler
+     'selects all the sheets
+    ActiveDocument.Sections(1).Range.Select
+    strWMName = ActiveDocument.Sections(1).Index
+    ActiveWindow.ActivePane.View.SeekView = wdSeekCurrentPageHeader
+     'Change the text for your watermark here
+    Selection.HeaderFooter.Shapes.AddTextEffect(msoTextEffect1, _
+    "COPY", "Arial", 1, False, False, 0, 0).Select
+    With Selection.ShapeRange
+         
+        .name = strWMName
+        .TextEffect.NormalizedHeight = False
+        .Line.Visible = False
+         
+        With .Fill
+             
+            .Visible = True
+            .Solid
+            .ForeColor.RGB = Gray
+            .Transparency = 0.9
+        End With
+         
+        .Rotation = 315
+        .LockAspectRatio = True
+        .Height = InchesToPoints(2.42)
+        .Width = InchesToPoints(6.04)
+         
+        With .WrapFormat
+            .AllowOverlap = True
+            .Side = wdWrapNone
+            .Type = 3
+             
+        End With
+         
+        .RelativeHorizontalPosition = wdRelativeVerticalPositionMargin
+        .RelativeVerticalPosition = wdRelativeVerticalPositionMargin
+         
+         'If using Word 2000 you may need to comment the 2
+         'lines above and uncomment the 2 below.
+         
+         '        .RelativeHorizontalPosition = wdRelativeVerticalPositionPage
+         '        .RelativeVerticalPosition = wdRelativeVerticalPositionPage
+         
+        .Left = wdShapeCenter
+        .Top = wdShapeCenter
+    End With
+     
+    ActiveWindow.ActivePane.View.SeekView = wdSeekMainDocument
+     
+    Exit Sub
+     
+ErrHandler:
+    MsgBox "An error occured trying to insert the watermark." & Chr(13) & _
+    "Error Number: " & Err.Number & Chr(13) & _
+    "Decription: " & Err.Description, vbOKOnly + vbCritical, "Error"
+End Sub
+Sub RemoveWaterMark()
+    Dim strWMName As String
+     
+    On Error GoTo ErrHandler
+     
+    ActiveDocument.Sections(1).Range.Select
+    strWMName = ActiveDocument.Sections(1).Index
+    ActiveWindow.ActivePane.View.SeekView = wdSeekCurrentPageHeader
+    Selection.HeaderFooter.Shapes(strWMName).Select
+    Selection.Delete
+    ActiveWindow.ActivePane.View.SeekView = wdSeekMainDocument
+     
+    Exit Sub
+     
+     
+ErrHandler:
+    MsgBox "An error occured trying to remove the watermark." & Chr(13) & _
+    "Error Number: " & Err.Number & Chr(13) & _
+    "Decription: " & Err.Description, vbOKOnly + vbCritical, "Error"
+     
+End Sub
+
+Sub sendAmyEmailOLD()
+Dim OutApp As Object
+Dim OutMail As Object
+
+Set OutApp = CreateObject("Outlook.Application")
+Set OutMail = OutApp.CreateItem(0)
+
+With OutMail
+    .Display
+    .To = "amy.kendell@justice.gc.ca"
+    .cc = ""
+    .subject = getLOemailSubject
+    .HTMLBody = "Hello Amy, <br> <br>" _
+            & "I've attached a letter that needs your signature. If you could add it to the attached file whenever you have a chance, that would be appreciated!<br><br>Thanks!"
+    .Attachments.Add filePath
+End With
+Set OutMail = Nothing
+Set OutApp = Nothing
+
+End Sub
+Sub sendby()
+
+End Sub
+Sub sendbyFAX()
+'ugh
+End Sub
+Sub sendbyCOURIER()
+    Call printSmallLabel
+End Sub
+Sub sendbyREGULARMAIL()
+Call printSmallLabel
+End Sub
+Sub printSmallLabel()
+    Dim labelStr As String
+    Dim i As Integer
+    Dim rng As Range
+    Dim p_rng As Range
+    Dim p_check As Boolean
+    
+    labelStr = "C:\Users\evasmith\Desktop\LetterFiles\MailingLabel.docx"
+    i = 60
+    Documents.Open (labelStr)
+    Set rng = ActiveDocument.Range
+    rng.Text = addressStr
+    rng.Font.Size = i
+    
+    p_check = True
+    Do Until p_check = False
+    Set p_rng = ActiveDocument.Paragraphs(ActiveDocument.Paragraphs.Count).Range
+        If p_rng.Text = Chr(13) Then
+            p_check = True
+            Debug.Print (p_check)
+            p_rng.Delete
+        Else
+            p_check = False
+            Debug.Print (p_check)
+        End If
+    Loop
+    
+    Do Until rng.Information(wdNumberOfPagesInDocument) = 1
+        rng.Font.Size = i
+        i = i - 2
+    Loop
+    
+    Call QuickChangePrinter
+    Documents(labelStr).Close savechanges:=wdDoNotSaveChanges
+    
+End Sub
+Sub QuickChangePrinter()
+    Dim sNewPrinter As String
+    sNewPrinter = ActivePrinter
+    ActivePrinter = "Smart Label Printer 440 (Copy 1)"
+    Application.PrintOut filename:=""
+    ActivePrinter = sNewPrinter
+End Sub
+Sub PrintEID(documentType As String, leadname As String, Recipient As String, e_Address As String, ifmsNumber As String, eidSubject As String)
+    Dim EIDtype As String
+    Dim docs As String
+    Dim EIDRng As Range
+    Dim docName As String
+    Dim descStr As String
+    Dim vend As String
+    Dim invNum As String
+    Dim sendStr As String
+    Dim cOption As String
+    Dim dOption As String
+    Dim proofStr As String
+    Dim EIDstr As String
+    
+    ifms = ifmsNumber
+
+    If InStr(1, documentType, "CLOSE") > 0 Then
+        EIDtype = "COURIER"
+        descStr = ""
+        vend = ""
+        invNum = ""
+        cOption = "By Courier"
+        dOption = "2 business days or less"
+        proofStr = "Yes"
+        If documentType = "CLOSEConsent" Or documentType = "CLOSEDismissed" Or documentType = "CLOSEAllowed" Then
+            docs = "Judgement/Order and CRA materials"
+        ElseIf documentType = "CLOSEWithdrawn" Then
+            docs = "Notice of Discontinuance/Correspondence for withdrawal and CRA materials"
+        End If
+        sendStr = Recipient & Chr(13) & e_Address
+    ElseIf documentType = "LOD" Or documentType = "EPRINT" Then
+        EIDtype = "EPRINT"
+        docs = ""
+        descStr = "Inital copy of draft LOD"
+        vend = "St. Joseph Print Group Inc." & Chr(13) & "Financial Services" & Chr(13) & "45 Sacre-Coeur Blvd." & Chr(13) & "HULL , Quebec" & Chr(13) & "K1A 0S7"
+        invNum = InputBox("Please enter invoice number", "Invoice Number")
+        sendStr = ""
+        cOption = ""
+        dOption = ""
+        proofStr = ""
+    ElseIf Not InStr(1, documentType, "CLOSE") > 0 Or documentType = "LOD" Then
+        docs = InputBox("Please enter documents being sent", "Materials Sent")
+        EIDtype = "COURIER"
+    End If
+
+    ActiveDocument.Tables(1).Range.Cells(2).Range.Text = EIDtype
+    
+    ActiveDocument.Tables(2).Range.Cells(2).Range.Text = "Eva Smith"
+    ActiveDocument.Tables(2).Range.Cells(4).Range.Text = leadname
+    ActiveDocument.Tables(2).Range.Cells(6).Range.Text = "ARO Tax Law Services"
+    ActiveDocument.Tables(2).Range.Cells(8).Range.Text = descStr
+    ActiveDocument.Tables(2).Range.Cells(10).Range.Text = vend
+
+    ActiveDocument.Tables(3).Range.Cells(8).Range.Text = eidSubject
+    ActiveDocument.Tables(3).Range.Cells(10).Range.Text = ifmsNumber
+    ActiveDocument.Tables(3).Range.Cells(14).Range.Text = invNum
+
+    ActiveDocument.Tables(4).Range.Cells(2).Range.Text = sendStr
+    ActiveDocument.Tables(4).Range.Cells(4).Range.Text = cOption
+    ActiveDocument.Tables(4).Range.Cells(6).Range.Text = dOption
+    ActiveDocument.Tables(4).Range.Cells(10).Range.Text = proofStr
+    ActiveDocument.Tables(4).Range.Cells(14).Range.Text = docs
+    ActiveDocument.Tables(4).Range.Cells(16).Range.Text = "Eva Smith"
+    ActiveDocument.Tables(4).Range.Cells(18).Range.Text = Format(Date, "mmmm-d-yyyy")
+
+    ActiveDocument.Range.Font.Color = -587137025
+    
+    ActiveDocument.PrintOut copies:=2
+    
+    ActiveDocument.Save
+    
+    If EIDtype = "EPRINT" Then
+        Call sendEmailSAM(ActiveDocument.fullname)
+    End If
+    
+    ActiveDocument.Close (wdSaveChanges)
+
+End Sub
+Function getEIDaddress(nameStr As String, eidAddress As String) As String
+    'REMEMBER THAT THIS WILL NEED TO BE UPDATED TO INCLUDE ANYONE OTHER THAN THE LITIGATION OFFICER IN THE FUTURE
+    getEIDaddress = LetterFormatting.getLOFullName(nameStr) & Chr(13) & eidAddress
+End Function
+Sub sendSamEmailOLD(attStr As String)
+Dim OutApp As Object
+Dim OutMail As Object
+
+Set OutApp = CreateObject("Outlook.Application")
+Set OutMail = OutApp.CreateItem(0)
+
+With OutMail
+    .Display
+    .To = "sam.boorman@justice.gc.ca"
+    .cc = ""
+    .subject = "Eprint - " & emailSub
+    .HTMLBody = "Hello Sam, <br> <br>" _
+            & "I've attached a copy of the EID form I just made for an Eprint job. Let me know if you have any questions.<br><br>Thanks!"
+    .Attachments.Add attStr
+End With
+Set OutMail = Nothing
+Set OutApp = Nothing
+
+'maybe send this one. We'll see
+
+End Sub
+Function noSpace(str) As String
+Dim i As Integer
+Dim str1 As String
+Dim str2 As String
+
+i = InStr(1, str, " ")
+Do Until i = 0
+    If i > 0 Then
+        str1 = Mid(str, 1, i - 1)
+        str2 = Mid(str, i + 1, Len(str))
+        str = str1 & str2
+    End If
+    i = InStr(1, str, " ")
+Loop
+noSpace = str
+
+End Function
+Sub emailTesting(strTo As String, strSubject As String, strHTMLBody As String, attStr As String)
+
+   Dim OlApp As Outlook.Application
+   Dim ObjMail As Outlook.MailItem
+
+   Set OlApp = Outlook.Application
+   Set ObjMail = OlApp.CreateItem(olMailItem)
+
+   ObjMail.To = strTo
+   ObjMail.subject = strSubject
+   ObjMail.Display
+   'You now have the default signature within ObjMail.HTMLBody.
+   'Add this after adding strHTMLBody
+   ObjMail.HTMLBody = strHTMLBody & ObjMail.HTMLBody
+   ObjMail.Attachments.Add attStr
+
+   'ObjMail.Send 'send immediately or
+   'ObjMail.close olSave 'save as draft
+   'Set OlApp = Nothing
+
+End Sub
+
+Sub getDocName()
+
+Debug.Print (ActiveDocument.fullname)
+
+End Sub

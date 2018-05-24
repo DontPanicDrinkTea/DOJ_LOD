@@ -1,0 +1,675 @@
+Option Explicit
+
+Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+
+Private wsTem As Worksheet
+Private wsSetup As Worksheet
+Private wsLOD As Worksheet
+
+Private rngTem As Range
+Private rngSetup As Range
+Private rngLOD As Range
+
+Private counsel As String
+Private EIDsubject As String
+Private emailSubject As String
+Private docSubject As String
+Private fname As String
+Private cNum As String
+Private fNum As String
+Private IFMS As String
+
+Private invNum As String
+
+Private ie As InternetExplorer
+Private html As HTMLDocument
+Private breakmsg As String
+Private lcont As Boolean
+Private icaseID_LOD As String
+
+Sub SetVarsMod3()
+
+Set wsSetup = Worksheets("Sheet2")
+Set wsLOD = Worksheets("Sheet3")
+
+Set rngSetup = wsSetup.Range("Table3")
+Set rngLOD = wsLOD.Range("Table4")
+
+End Sub
+Sub NewLODBuilder(lead As String, EIDs As String, emailS As String, docStr As String, fileName As String, courtNumber As String, fileNumber As String, ifmsNum As String)
+
+Call SetVarsMod3
+
+
+Dim saveStr As String
+
+saveStr = "C:\Users\evasmith\Desktop\" & docStr & ".xlsm"
+'
+'    ChDir "C:\Users\evasmith\Desktop"
+    ActiveWorkbook.SaveAs fileName:=saveStr, _
+        FileFormat:=xlOpenXMLWorkbookMacroEnabled, CreateBackup:=False
+
+wsSetup.Range("E7").Value = lead
+wsSetup.Range("E8").Value = EIDs
+wsSetup.Range("E9").Value = emailS
+wsSetup.Range("E10").Value = docStr
+wsSetup.Range("E11").Value = fileName
+wsSetup.Range("E12").Value = courtNumber
+wsSetup.Range("E13").Value = fileNumber
+wsSetup.Range("E14").Value = ifmsNum
+
+'Workbooks("C:\Users\evasmith\Desktop\LODAuto.xlsm").Close
+
+End Sub
+
+Sub CreateLODDoc()
+
+Dim invNum As String
+Dim wdObj As Object, objDocLOD As Object, objDocEID As Object
+Dim rCount As Integer
+Dim icaseID As String
+Dim j As Integer
+
+Call SetVarsMod3
+
+counsel = wsSetup.Range("E7").Value
+EIDsubject = wsSetup.Range("E8").Value
+emailSubject = wsSetup.Range("E9").Value
+docSubject = wsSetup.Range("E10").Value
+fname = wsSetup.Range("E11").Value
+cNum = wsSetup.Range("E12").Value
+fNum = wsSetup.Range("E13").Value
+IFMS = wsSetup.Range("E14").Value
+invNum = wsSetup.Range("E15").Value
+
+If invNum = "" Then
+    invNum = InputBox("Please enter Invoice number", "Invoice Number")
+End If
+
+'Call the bit where the table (in the same builder) is made here
+
+Call Module2.createLODtable
+ActiveWorkbook.Save
+
+'NOW you call the online part
+rCount = rngLOD.Rows.Count
+
+Call setIEpageLOD
+Call SetSearchLOD(ie, html, fNum)
+Debug.Print ("iCase ID is:" & icaseID_LOD)
+
+
+rngLOD.Copy
+Call icaseLOD
+
+'now switch to the new word doc to paste stuff and format
+    If lcont = False Then
+        Exit Sub
+    End If
+
+    j = 0
+    Do Until j = 20
+        Application.SendKeys "%{O}"
+        Sleep 3000
+        If FnGetOpenedDocInstance <> "" Then
+            Set wdObj = GetObject(, "Word.Application")
+            lcont = True
+            j = 20
+            breakmsg = "Successfully created and found word document"
+'            ActiveSheet.Hyperlinks.Add Anchor:=MainDocRng, Address:= _
+'                FnGetOpenedDocInstance, TextToDisplay:=docLinkStr
+'you do still need the filepath for a hyperlink, just not in this particular workbook
+            Exit Do
+        Else
+            Sleep 1000
+            lcont = False
+            j = j + 1
+            breakmsg = "Unable to create and find word document"
+        End If
+    Loop
+
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+
+wdObj.Visible = True
+
+Set objDocLOD = wdObj.documents(FnGetOpenedDocInstance)
+objDocLOD.Application.Run "FinalizeLOD", rCount
+'make sure everything is finished up and closed here
+
+'And then make the letter too eventually, because you're crazy
+
+End Sub
+Function getiCaseID_LOD(htmldoc As HTMLDocument, searchNum As String) As String
+    
+    Dim l As Variant
+    
+    For Each l In htmldoc.getElementsByClassName("gi")
+        If l.innerText = searchNum Then
+            getiCaseID_LOD = Mid(l.href, 39, Len(l.href))
+            getiCaseID_LOD = Mid(getiCaseID_LOD, 1, Len(getiCaseID_LOD) - 1)
+        End If
+    Next l
+    
+    Debug.Print (getiCaseID_LOD)
+
+End Function
+
+Sub icaseLOD()
+
+Dim LOD_URL As String
+Dim j As Integer
+
+LOD_URL = "http://icase7/Files/NewDocument.aspx?FileId=" & icaseID_LOD & "&DocumentGroupId=0&TemplateID=176579"
+
+Sleep 3000
+ie.navigate LOD_URL
+'Wait until IE has loaded the web page
+
+    breakmsg = ""
+    
+    Do While ie.readyState = 4: Sleep 100: Loop
+    Do While ie.readyState <> 4: Sleep 100: Loop
+    
+    j = 0
+    Do Until j = 100
+        If ie.LocationURL = "http://icase7/Error/Error.aspx?aspxerrorpath=/Files/NewDocument.aspx" Then
+            Call SetSearchLOD(ie, html, fNum)
+            Sleep 100
+            j = j + 1
+            lcont = False
+            breakmsg = "NO - Cannot navigate to list of documents template form page"
+        Else
+            j = 100
+            breakmsg = "YES - Successfully navigated to list of documents template form page"
+        End If
+    Loop
+        
+        Debug.Print (breakmsg)
+        If lcont = False Then
+            Exit Sub
+        End If
+        
+Set html = ie.document
+
+Dim i As Integer
+    Dim o As HTMLOptionElement
+    Dim formfields(1 To 6) As HTMLFormElement
+    Dim formIDs(1 To 6) As String
+    Dim formValues(1 To 6) As String
+    Dim toStr As String
+
+    formIDs(1) = "lstDocGroupsAvailable" 'document group
+    formIDs(2) = "txtDocumentName" 'document name
+    formIDs(3) = "cboDocumentType" 'document type
+    formIDs(4) = "UC 4 176579_cboParticipants" 'lead name
+    formIDs(5) = "UC 5 176579_cboParticipants" 'TCC
+    formIDs(6) = "UC 6 176579_cboParticipants" 'Address for service
+    
+    For i = 1 To 6
+        j = 0
+        Do Until j = 100
+            If errorCatchNoObject(html.getElementById(formIDs(i))) = True Then
+                Sleep 100
+                lcont = False
+                breakmsg = "NO - failed to set: " & formIDs(i)
+                j = j + 1
+            Else
+                Set formfields(i) = html.getElementById(formIDs(i))
+                lcont = True
+                breakmsg = "YES - Set: " & formIDs(i)
+                j = 100
+            End If
+        Loop
+        
+        Debug.Print (breakmsg)
+        If lcont = False Then
+            Exit Sub
+        End If
+    Next i
+    
+    formValues(1) = "1996" 'lst group type to Pleadings, Facta and Other Court Documents
+    formValues(2) = "List of Documents - Partial Disclosure - DRAFT"
+    formValues(3) = "1998" 'document type to Court
+
+    'picking lead name value string
+    For Each o In formfields(4).Options
+        If InStr(1, o.innerText, "(Lead)") > 0 Then
+            formValues(4) = o.Value
+            Exit For
+        End If
+    Next o
+    
+    'selecting TCC Ottawa as participant
+    For Each o In formfields(5).Options
+        If InStr(1, o.innerText, "(Court Contact)") > 0 Then
+            formValues(5) = o.Value
+            Exit For
+        End If
+    Next o
+  
+   Dim appStr As String
+   Dim repStr As String
+   'determine if recipient is appellant or representative
+    For Each o In formfields(6).Options
+        If InStr(1, o.innerText, "(Appellant)") > 0 Then
+            appStr = o.Value
+        End If
+        If InStr(1, o.innerText, "(Representative)") > 0 Then
+            repStr = o.Value
+        End If
+    Next o
+    
+    If repStr <> "" Then
+        toStr = repStr
+    Else
+        toStr = appStr
+    End If
+    
+    formValues(6) = toStr
+    
+        For i = 1 To 6
+            j = 0
+            Do Until j = 100
+                If IsObject(formfields(i)) = True Then
+                    Set formfields(i) = html.getElementById(formIDs(i))
+                    Sleep 100
+                    formfields(i).Focus
+                    formfields(i).Value = formValues(i)
+                    formfields(i).FireEvent ("onchange")
+                    breakmsg = "YES - successfully changed value of: " & formIDs(i) & " to " & formValues(i)
+                    lcont = True
+                    j = 100
+                Else
+                    Sleep 100
+                    lcont = False
+                    breakmsg = "NO - failed to change value of: " & formIDs(i) & " to " & formValues(i)
+                    j = j + 1
+                End If
+            Loop
+            Debug.Print (breakmsg)
+            If lcont = False Then
+                Exit Sub
+            End If
+        Next i
+        
+    'checking to see if add button is there and loaded before clicking
+    j = 0
+    Do Until j = 100
+        If IsObject(html.getElementById("imgbAdd")) = True Then
+            html.getElementById("imgbAdd").Click
+            j = 100
+            lcont = True
+            Sleep 3000
+            breakmsg = "YES - Found add button for document groups"
+        Else
+            Sleep 100
+            lcont = False
+            breakmsg = "NO - Couldn't find add button for document groups"
+            j = j + 1
+        End If
+    Loop
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    Sleep 5000
+    
+    'checking first that address for lead is not blank
+    j = 0
+    Do Until j = 60
+        If html.getElementById("UC 4 176579_txtAddress").Value = "" Then
+            Sleep 100
+            lcont = False
+            If errorCatchNoObject(html.getElementById("UC 4 176579_cboParticipants")) = False Then
+                html.getElementById("UC 4 176579_cboParticipants").Options(0).Selected = True
+                html.getElementById("UC 4 176579_cboParticipants").FireEvent ("onchange")
+                Sleep 4000
+                html.getElementById("UC 4 176579_cboParticipants").Value = formValues(4)
+                html.getElementById("UC 4 176579_cboParticipants").FireEvent ("onchange")
+                breakmsg = "NO - Address for Lead is blank"
+                Sleep 3000
+                j = j + 1
+            Else
+                lcont = False
+                Sleep 100
+                j = j + 1
+                breakmsg = "NO - Cannot find dropdown to change blank address for lead"
+            End If
+        Else
+            j = 60
+            lcont = True
+            breakmsg = "YES - Address is not blank for lead"
+        End If
+    Loop
+        
+        Debug.Print (breakmsg)
+        If lcont = False Then
+            Exit Sub
+        End If
+        
+    'checking address for TCC is not blank
+    j = 0
+    Do Until j = 60
+        If html.getElementById("UC 5 176579_txtAddress").Value = "" Then
+            Sleep 100
+            lcont = False
+            If errorCatchNoObject(html.getElementById("UC 5 176579_cboParticipants")) = False Then
+                html.getElementById("UC 5 176579_cboParticipants").Options(0).Selected = True
+                html.getElementById("UC 5 176579_cboParticipants").FireEvent ("onchange")
+                Sleep 4000
+                html.getElementById("UC 5 176579_cboParticipants").Value = formValues(5)
+                html.getElementById("UC 5 176579_cboParticipants").FireEvent ("onchange")
+                breakmsg = "NO - Address is blank for TCC"
+                Sleep 3000
+                j = j + 1
+            Else
+                lcont = False
+                Sleep 100
+                j = j + 1
+                breakmsg = "NO - Cannot find dropdown to change blank address for TCC"
+            End If
+        Else
+            j = 60
+            lcont = True
+            breakmsg = "YES - Address is not blank for TCC"
+        End If
+    Loop
+        
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    'checking address for App/Rep is not blank
+    j = 0
+    Do Until j = 60
+        If html.getElementById("UC 6 176579_txtAddress").Value = "" Then
+            Sleep 100
+            lcont = False
+            If errorCatchNoObject(html.getElementById("UC 6 176579_cboParticipants")) = False Then
+                html.getElementById("UC 6 176579_cboParticipants").Options(0).Selected = True
+                html.getElementById("UC 6 176579_cboParticipants").FireEvent ("onchange")
+                Sleep 4000
+                html.getElementById("UC 6 176579_cboParticipants").Value = formValues(5)
+                html.getElementById("UC 6 176579_cboParticipants").FireEvent ("onchange")
+                breakmsg = "NO - Address is blank for App/Rep"
+                Sleep 3000
+                j = j + 1
+            Else
+                lcont = False
+                Sleep 100
+                j = j + 1
+                breakmsg = "NO - Cannot find dropdown to change blank address for App/Rep"
+            End If
+        Else
+            j = 60
+            lcont = True
+            breakmsg = "YES - Address is not blank for App/Rep"
+        End If
+    Loop
+        
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    'make sure that the Counsel title is actually there
+    j = 0
+    Do Until j = 60
+        If html.getElementById("UC 4 176579_txtTitle").Value <> "Counsel" Then
+            Sleep 100
+            lcont = False
+            html.getElementById("UC 4 176579_txtTitle").Value = "Counsel"
+            breakmsg = "NO - Title is blank"
+            Sleep 3000
+            j = j + 1
+        Else
+            j = 60
+            lcont = True
+            breakmsg = "YES - Title is not blank"
+        End If
+    Loop
+        
+        Debug.Print (breakmsg)
+        If lcont = False Then
+            Exit Sub
+        End If
+        
+    j = 0
+    Do Until j = 100
+        If IsObject(html.getElementById("btnSubmit")) = True Then
+            j = 100
+            lcont = True
+            breakmsg = "YES - Found form submit button"
+            html.getElementById("btnSubmit").Click
+            Sleep 1000
+        Else
+            Sleep 100
+            lcont = False
+            breakmsg = "NO - form submit button not found"
+            j = j + 1
+        End If
+    Loop
+
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+
+End Sub
+Sub NameTest()
+Dim objword As Object, objDoc As Object
+
+Set objword = GetObject(, "Word.Application")
+Set objDoc = objword.documents(FnGetOpenedDocInstance)
+
+objDoc.Application.Run "CanIDoThis"
+
+End Sub
+
+Function FnGetOpenedDocInstance() As String
+    Dim objword As Object
+    On Error GoTo wordNotOpen
+    Set objword = GetObject(, "Word.Application")
+    objword.Visible = True
+    FnGetOpenedDocInstance = objword.activedocument.FullName
+wordNotOpen:
+    If Err.Number = 429 Then
+        On Error GoTo -1
+        FnGetOpenedDocInstance = ""
+    End If
+End Function
+Sub setIEpageLOD()
+    Debug.Print ("*******SET WEB PAGE SUB (LOD BUILDER)*******")
+
+    Dim URLstr As String
+
+    Dim j As Integer
+    
+    URLstr = "http://icase7/Files/Files.aspx"
+    If ie Is Nothing Then
+        Set ie = New InternetExplorer
+        ie.Visible = True
+    End If
+    
+    Sleep 3000
+    ie.navigate URLstr
+    
+    While ie.Busy Or ie.readyState <> READYSTATE_COMPLETE: DoEvents: Wend
+    
+    Set html = ie.document
+
+End Sub
+
+Sub SetSearchLOD(sIE As InternetExplorer, s_html As HTMLDocument, fileNum As String)
+
+    Debug.Print ("********SET SEARCH SUB (LOD)********")
+    
+    Dim homeURL As String
+    Dim newURL As String
+    Dim j As Integer
+    
+    homeURL = "http://icase7/Files/Files.aspx"
+    
+    Dim searchbyDRP As HTMLFormElement
+    Dim searchBox As HTMLFormElement
+    
+    If sIE.LocationURL = "http://icase7//Home/Home.aspx" Then
+        sIE.navigate homeURL
+        Sleep 100
+    End If
+
+    breakmsg = ""
+    
+    j = 0
+    Do Until j = 100
+        If sIE.LocationURL <> homeURL Then
+            Sleep 200
+            j = j + 1
+            breakmsg = "NO - Failed to navigate to correct webpage for searching for files"
+            lcont = False
+        ElseIf sIE.LocationURL = homeURL Then
+            j = 100
+            lcont = True
+            breakmsg = "YES - Navigated to correct web page"
+        End If
+    Loop
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    Set s_html = sIE.document
+    
+    j = 0
+    Do Until j = 200
+        Sleep 100
+        If IsObject(s_html.getElementById("ucSearchWithScope_cboSearchAgainst")) = False Then
+            j = j + 1
+            lcont = False
+            breakmsg = "NO - Couldn't find search against dropdown before timer ran out"
+        Else
+            j = 200
+            lcont = True
+            breakmsg = "YES - Found Search Against Dropdown"
+            Set searchbyDRP = s_html.getElementById("ucSearchWithScope_cboSearchAgainst")
+        End If
+    Loop
+    
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    j = 0
+    Do Until j = 200
+        Sleep 100
+        If IsObject(s_html.getElementById("ucSearchWithScope_txtSearch")) = False Then
+            j = j + 1
+            lcont = False
+            breakmsg = "NO - Couldn't find search textbox before timer ran out"
+        Else
+            j = 200
+            lcont = True
+            breakmsg = "YES - Found search textbox before timer ran out"
+            Set searchBox = s_html.getElementById("ucSearchWithScope_txtSearch")
+        End If
+    Loop
+
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    j = 0
+    Do Until j = 200
+        Sleep 100
+        If searchbyDRP Is Nothing Then
+            j = j + 1
+            lcont = False
+            breakmsg = "NO - Search against dropdown returns nothing (after first check)"
+        ElseIf Not searchbyDRP Is Nothing Then
+            j = 200
+            lcont = True
+            breakmsg = "YES - Search against dropdown found (after first check)"
+        End If
+    Loop
+
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    j = 0
+    Do Until j = 100
+        Sleep 100
+        If searchBox Is Nothing Then
+            j = j + 1
+            lcont = False
+            breakmsg = "NO - Search textbox returns nothing (after first check)"
+        ElseIf Not searchBox Is Nothing Then
+            j = 100
+            lcont = True
+            breakmsg = "YES - Search textbox found (after first check)"
+        End If
+    Loop
+
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+    
+    searchbyDRP.Value = "1"
+    searchBox.Value = fileNum
+    
+    s_html.getElementById("ucSearchWithScope_imgSearch").Click
+
+    icaseID_LOD = getiCaseID_LOD(s_html, fileNum)
+    
+    j = 0
+    Do Until j = 100
+        If icaseID_LOD = "" Then
+            Sleep 100
+            icaseID_LOD = getiCaseID_LOD(s_html, fileNum)
+            lcont = False
+            j = j + 1
+            breakmsg = "NO - iCaseID string was empty"
+        ElseIf icaseID_LOD <> "" Then
+            lcont = True
+            j = 100
+            breakmsg = "YES - iCaseID string was not empty"
+        End If
+    Loop
+
+    
+    Debug.Print (breakmsg)
+    If lcont = False Then
+        Exit Sub
+    End If
+End Sub
+
+Function errorCatchNoObject(ByRef formObj As HTMLObjectElement) As Boolean
+Dim formObjSet As HTMLFormElement
+errorCatchNoObject = False
+
+'here I get an error if there are no cells
+    On Error GoTo hell
+    formObj.Focus
+Exit Function
+
+hell:
+errorCatchNoObject = True
+
+End Function
+
+

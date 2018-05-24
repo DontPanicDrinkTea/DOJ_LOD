@@ -1,0 +1,565 @@
+Option Explicit
+
+Private wsTem As Worksheet
+Private wsSetup As Worksheet
+Private wsLOD As Worksheet
+
+Private rngTem As Range
+Private rngSetup As Range
+Private rngLOD As Range
+
+Private rngYears As Range
+Private rngAO As Range
+Private rngREP As Range
+
+Private rngTab As Range
+Private rngType As Range
+Private rngDate As Range
+Private rngWP As Range
+Private rngBy As Range
+Private rngTo As Range
+Private rngRe As Range
+Private rngPeriod As Range
+Private rngForYear As Range
+Private rngPgs As Range
+Private rnglvl As Range
+Private rngAttch As Range
+Private rngNotes As Range
+
+Private d_rngTab As Range
+Private d_rngType As Range
+Private d_rngDate As Range
+Private d_rngWP As Range
+Private d_rngBy As Range
+Private d_rngTo As Range
+Private d_rngRe As Range
+Private d_rngPeriod As Range
+Private d_rngForYear As Range
+Private d_rngPgs As Range
+Private d_rnglvl As Range
+Private d_rngAttch As Range
+Private d_rngNotes As Range
+
+Private att_rngTab As Range
+Private att_rngType As Range
+Private att_rngDate As Range
+Private att_rngWP As Range
+Private att_rngBy As Range
+Private att_rngTo As Range
+Private att_rngRe As Range
+Private att_rngPeriod As Range
+Private att_rngForYear As Range
+Private att_rngPgs As Range
+Private att_rnglvl As Range
+Private att_rngAttch As Range
+Private att_rngNotes As Range
+
+Private att_toStr As String
+Private att_fromStr As String
+Private att_byStr As String
+
+Private att_wo As String
+Private att_notes As String
+Private att_WPstr As String
+Private att_DateStr As String
+Private att_periodStr As String
+Private att_companyStr As String
+
+Private yrStr As String
+
+Private fromStr As String
+Private toStr As String
+Private byStr As String
+Private reStr As String
+
+Private yrCount As Integer
+Private AllYears As String
+Private yrsYN As String
+
+Private wo As String
+Private notes As String
+Private WPstr As String
+Private DateStr As String
+Private periodStr As String
+Private companyStr As String
+
+Private NewLODname As String
+Private LODname As String
+
+Sub SetVars()
+
+Set wsTem = Worksheets("Sheet1")
+Set wsSetup = Worksheets("Sheet2")
+Set wsLOD = Worksheets("Sheet3")
+
+Set rngTem = wsTem.Range("Table1")
+Set rngSetup = wsSetup.Range("Table3")
+Set rngLOD = wsLOD.Range("Table4")
+
+Set rngYears = wsSetup.Range("Table2")
+Set rngAO = wsSetup.Range("E2")
+Set rngREP = wsSetup.Range("E3")
+
+yrCount = rngYears.Rows.Count
+AllYears = GetAllYears(yrCount)
+
+If yrCount > 1 Then
+    yrsYN = "s"
+ElseIf yrCount = 1 Then
+    yrsYN = ""
+End If
+
+End Sub
+Sub setMainRowVars(num As Integer)
+
+Set rngTab = rngSetup.Rows(num).Cells(1)
+Set rnglvl = rngSetup.Rows(num).Cells(2)
+Set rngType = rngSetup.Rows(num).Cells(3)
+Set rngDate = rngSetup.Rows(num).Cells(4)
+Set rngWP = rngSetup.Rows(num).Cells(5)
+Set rngBy = rngSetup.Rows(num).Cells(6)
+Set rngTo = rngSetup.Rows(num).Cells(7)
+Set rngRe = rngSetup.Rows(num).Cells(8)
+Set rngPeriod = rngSetup.Rows(num).Cells(9)
+Set rngForYear = rngSetup.Rows(num).Cells(10)
+Set rngPgs = rngSetup.Rows(num).Cells(11)
+Set rngAttch = rngSetup.Rows(num).Cells(12)
+Set rngNotes = rngSetup.Rows(num).Cells(13)
+
+End Sub
+Sub setDescRowVars(num As Integer)
+
+Set d_rngTab = rngSetup.Rows(num).Cells(1)
+Set d_rnglvl = rngSetup.Rows(num).Cells(2)
+Set d_rngType = rngSetup.Rows(num).Cells(3)
+Set d_rngDate = rngSetup.Rows(num).Cells(4)
+Set d_rngWP = rngSetup.Rows(num).Cells(5)
+Set d_rngBy = rngSetup.Rows(num).Cells(6)
+Set d_rngTo = rngSetup.Rows(num).Cells(7)
+Set d_rngRe = rngSetup.Rows(num).Cells(8)
+Set d_rngPeriod = rngSetup.Rows(num).Cells(9)
+Set d_rngForYear = rngSetup.Rows(num).Cells(10)
+Set d_rngPgs = rngSetup.Rows(num).Cells(11)
+Set d_rngAttch = rngSetup.Rows(num).Cells(12)
+Set d_rngNotes = rngSetup.Rows(num).Cells(13)
+
+toStr = getToStr(d_rngTo)
+fromStr = getFromStr(d_rngBy)
+byStr = getByStr(d_rngBy)
+companyStr = getCompanyNameStr(d_rngBy)
+notes = getNotes(d_rngNotes)
+wo = getWO(d_rngAttch)
+WPstr = getWPOPstr(d_rngWP.Value, d_rngType.Value)
+periodStr = getPeriod(d_rngPeriod)
+yrStr = GetYearStr(d_rngForYear)
+
+If d_rngRe.Value = "" Then
+    reStr = ""
+Else
+    reStr = d_rngRe.Value
+End If
+
+End Sub
+Sub setAttachDescRowVars(num As Integer)
+
+Set att_rngTab = rngSetup.Rows(num).Cells(1)
+Set att_rnglvl = rngSetup.Rows(num).Cells(2)
+Set att_rngType = rngSetup.Rows(num).Cells(3)
+Set att_rngDate = rngSetup.Rows(num).Cells(4)
+Set att_rngWP = rngSetup.Rows(num).Cells(5)
+Set att_rngBy = rngSetup.Rows(num).Cells(6)
+Set att_rngTo = rngSetup.Rows(num).Cells(7)
+Set att_rngRe = rngSetup.Rows(num).Cells(8)
+Set att_rngPeriod = rngSetup.Rows(num).Cells(9)
+Set att_rngForYear = rngSetup.Rows(num).Cells(10)
+Set att_rngPgs = rngSetup.Rows(num).Cells(11)
+Set att_rngAttch = rngSetup.Rows(num).Cells(12)
+Set att_rngNotes = rngSetup.Rows(num).Cells(13)
+
+att_toStr = getToStr(att_rngTo)
+att_fromStr = getFromStr(att_rngBy)
+att_byStr = getByStr(att_rngBy)
+att_companyStr = getCompanyNameStr(att_rngBy)
+att_notes = getNotes(att_rngNotes)
+att_wo = getWO(att_rngAttch)
+att_WPstr = getWPOPstr(att_rngWP.Value, att_rngType.Value)
+att_periodStr = getPeriod(att_rngPeriod)
+
+If att_rngRe.Value = "" Then
+    reStr = ""
+Else
+    reStr = att_rngRe.Value
+End If
+
+End Sub
+Sub createLODtable()
+
+Application.ScreenUpdating = False
+Call SetVars
+
+Dim iTab As Integer
+
+Dim attCount As Integer
+Dim tabNum As Integer
+
+Dim k As Integer
+Dim j As Integer
+Dim i As Integer
+Dim rnum As Integer
+
+Dim descStr As String
+
+Dim rnglvlCheck As Range
+
+Dim str As String
+
+j = rngSetup.Rows.Count
+iTab = 1
+
+Do Until iTab > j
+    Call setMainRowVars(iTab)
+    tabNum = rngTab.Value
+    Call setDescRowVars(iTab)
+    attCount = -1
+
+    For k = 1 To j
+        If rngSetup.Rows(k).Cells(1).Value = rngTab.Value Then
+            attCount = attCount + 1
+        End If
+    Next k
+
+    If attCount = 0 Then
+        descStr = getDescriptionNoAttch(iTab)
+    End If
+    
+    If attCount = 1 Then
+        descStr = GetAttach1Description(iTab)
+    ElseIf attCount > 1 Then
+        descStr = GetAttach2Description(iTab, attCount)
+    End If
+        
+    If rnglvl.Value = 1 Then
+        rngLOD.Rows(tabNum).Cells(2).Value = getAlpha(tabNum)
+        rngLOD.Rows(tabNum).Cells(3).Value = rngDate.Value
+    End If
+    
+    rngLOD.Rows(tabNum).Cells(1).Value = descStr
+
+    iTab = iTab + attCount + 1
+Loop
+
+    wsLOD.Columns("D:D").EntireColumn.AutoFit
+
+Application.ScreenUpdating = True
+
+End Sub
+Function getDescriptionStr(rnum As Integer) As String
+
+Call setDescRowVars(rnum)
+Call setAttachDescRowVars(rnum)
+
+'create string of years in question
+
+Dim descArr(1 To 32) As Variant
+
+descArr(1) = "Corporation Notice of Assessment" & yrStr
+descArr(2) = "Corporation Notice of (Re)Assessment" & yrStr
+descArr(3) = "Notice of Assessment" & yrStr & periodStr
+descArr(4) = "Notice of (Re)Assessment" & yrStr & periodStr
+descArr(5) = "Notice of Confirmation" & yrStr & periodStr
+descArr(6) = "Statement of Interest Calculated" & yrStr
+descArr(7) = "Notice of Objection" & yrStr & periodStr
+descArr(8) = "Penalty Recommendation Report" & periodStr & yrStr & ", prepared " & byStr
+descArr(9) = "Audit Report" & periodStr & yrStr & ", prepared " & byStr
+descArr(10) = "Letter " & fromStr & toStr & "re " & reStr
+descArr(11) = "Fax " & fromStr & toStr & "re " & reStr
+descArr(12) = "Notification of Instalment Interest" & yrStr
+descArr(13) = "Report on Objection" & yrStr & ", prepared " & byStr
+descArr(14) = "T2020 Memo for File detailing communication/correspondence with taxpayer and/or representative over the period of " & periodStr & ", prepared " & byStr
+descArr(15) = "Letter " & fromStr & toStr & "re Officer assigned to Notice of Objection" & yrStr & ", providing understanding of issues under objection"
+descArr(16) = reStr
+descArr(17) = "Copy of cheque " & fromStr & toStr & reStr
+descArr(18) = "T4A-RCA" & yrStr & " with a distribution amount of " & reStr
+descArr(19) = "T3-RCA" & yrStr
+descArr(20) = "T1225 Trust Notice of Assessment" & yrStr
+descArr(21) = WPstr & " re " & reStr & periodStr & yrStr 'WP
+descArr(22) = WPstr & " re " & reStr & periodStr & yrStr 'CRA Printout
+descArr(23) = companyStr & "statement" & periodStr
+descArr(24) = companyStr & toStr & reStr
+descArr(25) = "email " & fromStr & toStr & "re " & reStr
+descArr(26) = "T7W-C" & yrStr
+descArr(27) = "T1 General" & yrStr
+descArr(28) = "Assessment After Normal (Re)Assessment Period Reccomendation Report" & periodStr & yrStr
+descArr(29) = "Scientific Research & Experimental Development Technical Review Report" & yrStr & ", prepared " & byStr
+descArr(30) = "Scientific Research & Experimental Development (SR&ED) Expenditures Claim" & yrStr
+descArr(31) = "T2 Corporation Tax Return" & yrStr
+descArr(32) = "T4 for the" & yrStr & fromStr
+
+getDescriptionStr = descArr(d_rngType.Value)
+
+End Function
+Sub stringTesting()
+Dim i As Integer
+
+i = 28
+
+Call setTestVars(i)
+
+Debug.Print (getDescriptionStr(i))
+
+End Sub
+Function getDescriptionNoAttch(num As Integer) As String
+
+Call setDescRowVars(num)
+
+getDescriptionNoAttch = getDescriptionStr(num) & wo & " (" & getPgs(d_rngPgs.Value) & notes
+
+End Function
+Function GetAttach1Description(num As Integer) As String
+
+Call setDescRowVars(num)
+Call setAttachDescRowVars(num + 1)
+
+Dim pgs As Integer
+
+pgs = d_rngPgs.Value + att_rngPgs.Value
+
+GetAttach1Description = getDescriptionStr(num) & wo & notes & " with attached " & getDate(att_rngDate) & getDescriptionStr(num + 1) & " (" & getPgs(pgs)
+
+End Function
+Function GetAttach2Description(num As Integer, attNum As Integer) As String
+
+Call setDescRowVars(num)
+
+Dim str As String
+Dim pgs As Integer
+Dim a_i As Integer
+Dim indNum As String
+
+str = getDescriptionStr(num) & wo & notes
+pgs = d_rngPgs.Value
+
+For a_i = 1 To attNum
+    Call setDescRowVars(num + a_i)
+    Call setAttachDescRowVars(num + a_i)
+    indNum = "[lvl" & att_rnglvl.Value - 1 & "]"
+    pgs = pgs + att_rngPgs.Value
+    If att_rnglvl.Value = att_rnglvl.Offset(-1, 0).Value + 1 Then
+        str = str & " with attached:"
+    End If
+        str = str & Chr(10) & indNum & getDate(att_rngDate) & getDescriptionStr(num + a_i) & att_wo & att_notes
+Next a_i
+        
+GetAttach2Description = str & Chr(10) & "(total " & getPgs(pgs)
+
+End Function
+Function GetYearStr(drng As Range) As String
+Dim str As String
+Dim YN As Boolean
+Dim yrs As String
+Dim i As Integer
+Dim yrCount As Integer
+
+yrCount = rngYears.Rows.Count
+i = 1
+
+YN = False
+
+If drng.Value = "ALL" Then
+    str = GetAllYears(yrCount)
+Else
+    str = drng.Value
+End If
+
+If InStr(1, str, "and") > 0 Or InStr(1, str, "to") > 0 Or InStr(1, str, "-") > 0 Or InStr(1, str, ",") > 0 Then
+    YN = True
+End If
+
+If YN = True Then
+    yrs = " taxation years"
+ElseIf YN = False Then
+    yrs = " taxation year"
+End If
+
+If str = "" Then
+    GetYearStr = ""
+Else
+    GetYearStr = " for the " & str & yrs
+End If
+
+End Function
+Function GetAllYears(yrs As Integer) As String
+Dim iYr As Integer
+
+iYr = 1
+Do Until iYr > yrs
+    GetAllYears = GetAllYears & rngYears.Rows(iYr).Cells(1).Value
+    If iYr < yrs Then
+        If yrs > 2 Then
+            GetAllYears = GetAllYears & ", "
+        ElseIf yrs = 2 Then
+            GetAllYears = GetAllYears & " "
+        End If
+    End If
+    If iYr = yrs - 1 Then
+        GetAllYears = GetAllYears & "and "
+    End If
+    iYr = iYr + 1
+Loop
+
+End Function
+Function getToStr(rng As Range) As String
+
+If rng.Value = "AO" Then
+    getToStr = "to " & rngAO.Value & ", CRA "
+ElseIf rng.Value = "REP" Then
+    getToStr = "to " & rngREP.Value & " "
+Else
+    getToStr = "to " & rng.Value & " "
+End If
+
+End Function
+Function getFromStr(rng As Range) As String
+
+If rng.Value <> "" Then
+    If rng.Value = "AO" Then
+        getFromStr = "from " & rngAO.Value & ", CRA "
+    ElseIf rng.Value = "REP" Then
+        getFromStr = "from " & rngREP.Value & " "
+    Else
+        getFromStr = "from " & rng.Value & " "
+    End If
+Else
+    getFromStr = ""
+End If
+
+End Function
+Function getByStr(rng As Range) As String
+
+If rng.Value = "AO" Then
+    getByStr = "by " & rngAO.Value
+Else
+    getByStr = "by " & rng.Value
+End If
+
+End Function
+Function getPgs(num As Integer) As String
+
+If num = 1 Then
+    getPgs = "1 p)"
+ElseIf num > 1 Then
+    getPgs = num & " pp)"
+End If
+
+End Function
+Function getWPOPstr(wpVal As String, tVal As Integer) As String
+
+If tVal = 22 Or tVal = 21 Or tVal = 24 Then
+    If tVal = 21 Then
+        If wpVal = "" Then
+            getWPOPstr = "WP"
+        Else
+            getWPOPstr = "WP #" & wpVal
+        End If
+    ElseIf tVal = 22 Then
+        If wpVal = "" Then
+            getWPOPstr = "CRA Printout"
+        Else
+            getWPOPstr = "CRA Printout OP:" & wpVal
+        End If
+    ElseIf tVal = 24 Then
+        If wpVal = "" Then
+            getWPOPstr = "Invoice "
+        Else
+            getWPOPstr = "Invoice #: & wpval "
+        End If
+    End If
+Else
+    getWPOPstr = ""
+End If
+
+End Function
+Function getDate(drng As Range) As String
+
+If drng.Value = "Various" Or drng = "Undated" Or drng = "[Unsure]" Then
+    getDate = ""
+Else
+    getDate = Format(drng.Value, "mmmm d, yyyy") & " "
+End If
+
+End Function
+Function getCompanyNameStr(drng As Range) As String
+
+If drng.Value = "" Then
+    getCompanyNameStr = ""
+Else
+    getCompanyNameStr = drng.Value
+End If
+
+End Function
+Function getNotes(rng As Range) As String
+
+If rng.Value = "" Then
+    getNotes = ""
+Else
+    getNotes = " [" & rng.Value & "]"
+End If
+
+End Function
+
+Function getWO(drng As Range) As String
+
+If drng.Value = "" Then
+    getWO = ""
+ElseIf drng.Value = "y" Or drng.Value = "Y" Then
+    getWO = " (w/o attachment)"
+End If
+
+End Function
+Function getPeriod(drng As Range) As String
+
+If drng.Value = "" Then
+    getPeriod = ""
+Else
+    getPeriod = " for the period " & drng.Value
+End If
+
+End Function
+
+Sub setTestVars(num As Integer)
+
+Call SetVars
+Call setMainRowVars(num)
+Call setDescRowVars(num)
+Call setAttachDescRowVars(num)
+
+End Sub
+
+
+Sub alphaTest()
+
+Debug.Print (getAlpha(53))
+
+End Sub
+Function getAlpha(tNum As Integer) As String
+Dim abc As String
+Dim AAB As String
+Dim A_Z As String
+Dim i As Integer, j As Integer
+
+abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+i = WorksheetFunction.RoundUp(tNum / 26, 0) - 1
+j = tNum - (26 * i)
+If i = 0 Then
+    AAB = ""
+Else
+    AAB = Mid(abc, i, 1)
+End If
+
+A_Z = Mid(abc, j, 1)
+
+getAlpha = AAB & A_Z
+
+End Function
+
