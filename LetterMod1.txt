@@ -1,0 +1,440 @@
+Option Explicit
+
+Private Declare Function ShellExecute _
+  Lib "shell32.dll" Alias "ShellExecuteA" ( _
+  ByVal hWnd As Long, _
+  ByVal Operation As String, _
+  ByVal filename As String, _
+  Optional ByVal Parameters As String, _
+  Optional ByVal Directory As String, _
+  Optional ByVal WindowStyle As Long = vbMinimizedFocus _
+  ) As Long
+
+Private doc As Document
+Private docFileName As String
+
+Private LOfullName As String
+Private LOShort As String
+Private LOStr As String
+Private LOemail As String
+
+Private docType As String
+Private leadname As String
+Private ifms As String
+Private sType1 As String
+Private sType2 As String
+Private saveName As String
+Private EIDsubj As String
+Private emailSubj As String
+Private addrStr As String
+
+Sub FinalizeLetter()
+    Call paraMatch(sType1, sType2)
+    Call changecolour
+    Call fixBorders
+    doc.Save
+    Call saveLocal 'may no longer be necessary?
+    Call SendingMacros.SEND_SetValues(docType, leadname, LOStr, LOemail, saveName, EIDsubj, emailSubj, sType1, sType2, ifms, addrStr)
+    Call DeleteCurrentDoc
+End Sub
+Sub LetterSetValues(lettertype As String, counselName As String, LOiCaseName As String, emailAddress As String, sendType1 As String, sendType2 As String, saveStr As String, eidSubject As String, emailSubject As String, ifmsNum As String)
+    Set doc = ActiveDocument
+    docType = lettertype
+    leadname = counselName
+    LOStr = LOiCaseName
+    LOfullName = getLOFullName(LOStr)
+    LOShort = getLOfirstShort(getLOfirstName(LOStr))
+    LOemail = emailAddress
+    sType1 = sendType1
+    sType2 = sendType2
+    saveName = saveStr
+    EIDsubj = eidSubject
+    emailSubj = emailSubject
+    ifms = ifmsNum
+'    addrStr = LOfullName & Chr(13) & justAddress
+    Call FinalizeLetter
+End Sub
+Sub paraMatch(delivery1 As String, delivery2 As String)
+
+    Dim i As Integer
+    Dim j As Integer
+    Dim rng As Range
+    Dim sendStr As String
+    Dim lnameRng As Range
+    
+    If delivery2 = "" Then
+        sendStr = delivery1
+    ElseIf delivery2 <> "" Then
+        sendStr = delivery1 & " and " & delivery2
+    End If
+    
+    Call tableParaMatch
+    Set lnameRng = doc.Paragraphs(doc.Range(0, setRange(doc, "Counsel", 0, 0).End).Paragraphs.Count - 1).Range
+    If lnameRng = Chr(13) Then
+        lnameRng = leadname & Chr(13)
+    End If
+    doc.Paragraphs(21).Range.Text = Chr(13) & Chr(13)
+    doc.Paragraphs(23).Range.Text = Format(Date, "mmmm d, yyyy") & Chr(13)
+    doc.Paragraphs(24).Range.Text = Chr(13)
+    doc.Paragraphs(25).Range.Text = "BY " & sendStr & Chr(13)
+    If doc.Paragraphs(26).Range.Text = Chr(13) And doc.Paragraphs(27).Range.Text = Chr(13) Then
+        doc.Paragraphs(26).Range.Text = ""
+    Else
+        doc.Paragraphs(26).Range.Text = Chr(13)
+    End If
+    addrStr = GetAddressRng.Text
+    Debug.Print (GetAddressRng.Text)
+    GetAddressRng.Text = Chr(13)
+    doc.Paragraphs(28).Range.Text = Chr(13)
+    doc.Paragraphs(29).Range.Text = salutation()
+    doc.Paragraphs(30).Range.Text = ""
+    doc.Paragraphs(35).Range.Text = Chr(13)
+    Call LetterText
+
+    'delete all paragraphs after last bc line
+    i = doc.Paragraphs.Count
+
+    Do Until doc.Paragraphs(i).Range.Text <> Chr(13)
+        If doc.Paragraphs(i).Range.Text = Chr(13) Then
+            doc.Paragraphs(i).Range.Delete
+            i = i - 1
+        End If
+    Loop
+
+    doc.Paragraphs(27).Range.Text = addrStr '& Chr(13)
+
+End Sub
+Sub tableParaMatch()
+
+    Dim tbl As Table
+    Dim DOJEngRng As Range
+    Dim DOJFreRng As Range
+    Dim blankRng As Range
+    Dim addrEngRng As Range
+    Dim addrFreRng As Range
+    Dim contactRng As Range
+    Dim str As String
+    Dim i As Integer
+    Dim rng As Range
+    
+    Set tbl = ActiveDocument.Tables(1)
+    Set DOJEngRng = tbl.Cell(1, 1).Range
+    Set DOJFreRng = tbl.Cell(1, 2).Range
+    Set blankRng = tbl.Cell(1, 3).Range
+    Set addrEngRng = tbl.Cell(2, 1).Range
+    Set addrFreRng = tbl.Cell(2, 2).Range
+    Set contactRng = tbl.Cell(2, 3).Range
+    
+    With tbl.Range.ParagraphFormat
+        .SpaceBefore = 0
+        .SpaceBeforeAuto = False
+        .SpaceAfter = 0
+        .SpaceAfterAuto = False
+        .LineSpacingRule = wdLineSpaceSingle
+        .LineUnitBefore = 0
+        .LineUnitAfter = 0
+    End With
+    
+    DOJEngRng.Text = "Department of Justice" & Chr(13) & "Canada"
+    DOJFreRng.Text = "Ministère de la Justice" & Chr(13) & "Canada"
+    blankRng.Text = ""
+    addrEngRng.Text = "Atlantic Regional Office" & Chr(13) & "Suite 1400, Duke Tower" & Chr(13) & "5251 Duke Street" & Chr(13) & "Halifax, Nova Scotia" & Chr(13) & "B3J 1P3"
+    addrFreRng.Text = "Bureau Régional de l'Atlantique" & Chr(13) & "Pièce 1400, Tour Duke" & Chr(13) & "5251, rue Duke" & Chr(13) & "Halifax (Nouvelle-Écosse)" & Chr(13) & "B3J 1P3"
+    contactRng.Text = "Phone:" & Chr(9) & "(709) 772-7609" & Chr(13) & "Fax:" & Chr(9) & "(902) 426-8802"
+    
+End Sub
+Sub LetterText()
+        
+    Dim letterRng As Range
+    
+    Set letterRng = getLetterRange
+    letterRng.Text = Application.Run(docType & "Text")
+    
+    letterRng.ParagraphFormat.Alignment = wdAlignParagraphJustify
+    
+    If InStr(1, docType, "CLOSE_REPORT") > 0 Then
+        Call AddEnclosures
+    ElseIf docType = "TRANSFER" Then
+        Call AddEmailHyperLink
+    End If
+    
+End Sub
+Sub AddEnclosures()
+
+    Dim i As Integer
+    i = doc.Paragraphs.Count
+    
+    doc.Paragraphs(i).Range.Text = doc.Paragraphs(i).Range.Text & Chr(13) & Chr(13) & "Enclosures"
+    
+End Sub
+Function getLetterRange()
+
+    Dim textRng As Range
+    Dim textEndRng As Range
+    Dim i As Integer
+    
+    Set textRng = doc.Paragraphs(36).Range
+    Set textEndRng = setRange(doc, "Counsel", 0, 0)
+    
+    i = doc.Range(0, textEndRng.End).Paragraphs.Count
+    
+    textRng.MoveEnd Unit:=wdParagraph, Count:=i - 36 - 2
+    
+    Set getLetterRange = textRng
+
+End Function
+
+Function TRANSFERText() As String
+
+TRANSFERText = "This file is being transferred to the Ontario Regional Office of the Department of Justice in Toronto.  " & _
+                "Processing the transfer and reassigning the file to a counsel in the Ontario Regional Office should be completed " & _
+                "in about 2 weeks, at which time a letter will be sent to you identifying the counsel with carriage of the file.  " & _
+                "If you have not received such a letter within 3 weeks of this letter and want to identify the newly assigned " & _
+                "counsel, you may contact Ashley James, who is an administrative assistant at the Ontario Regional Office, " & _
+                "at ashley.james@justice.gc.ca or by telephone at 416-973-8208." & Chr(13) & Chr(13) & "Thank you." & _
+                 Chr(13) & Chr(13) & "Yours truly," & Chr(13) & Chr(13) & Chr(13) & Chr(13)
+
+End Function
+Function CLOSE_REPORT_DismissedText() As String
+
+CLOSE_REPORT_DismissedText = "With respect to the above captioned appeal, please find enclosed a copy of the formal Judgment of the " & _
+                    "Tax Court of Canada dismissing the appeal.  As this matter has been concluded, I am returning your " & _
+                    "departmental file and am closing our file." & Chr(13) & Chr(13) & _
+                    "If you have any questions or comments, please do not hesitate to call me." & Chr(13) & Chr(13) & _
+                    "Yours truly," & Chr(13) & Chr(13) & Chr(13) & Chr(13)
+End Function
+Function CLOSE_REPORT_AllowedText() As String
+
+CLOSE_REPORT_AllowedText = "With respect to the above captioned appeal, please find enclosed a copy of the formal Judgment of the " & _
+                    "Tax Court of Canada allowing the appeal.  As this matter has been concluded, I am returning your " & _
+                    "departmental file and am closing our file." & Chr(13) & Chr(13) & _
+                    "If you have any questions or comments, please do not hesitate to call me." & Chr(13) & Chr(13) & _
+                    "Yours truly," & Chr(13) & Chr(13) & Chr(13) & Chr(13)
+End Function
+Function CLOSE_REPORT_ConsentText() As String
+
+CLOSE_REPORT_ConsentText = "With respect to the above captioned appeal, please find enclosed a copy of the formal Judgment of the " & _
+                    "Tax Court of Canada relating to the Consent to Judgment filed by the parties.  As this matter has been " & _
+                    "concluded, I am returning your departmental file and am closing our file." & Chr(13) & Chr(13) & _
+                    "If you have any questions or comments, please do not hesitate to call me." & Chr(13) & Chr(13) & _
+                    "Yours truly," & Chr(13) & Chr(13) & Chr(13) & Chr(13)
+End Function
+Function CLOSE_REPORT_WithdrawnText() As String
+
+CLOSE_REPORT_WithdrawnText = "Please be advised that the above captioned Appellant has withdrawn their appeal.  I am enclosing a " & _
+                    "copy of correspondence received from the Tax Court of Canada, with attached correspondence from " & _
+                    "the Appellant confirming the withdrawal of this appeal." & Chr(13) & Chr(13) & _
+                    "As this matter has been concluded, I am returning your departmental file and am closing our file." & Chr(13) & Chr(13) & _
+                    "If you have any questions or comments, please do not hesitate to call me." & Chr(13) & Chr(13) & _
+                    "Yours truly," & Chr(13) & Chr(13) & Chr(13) & Chr(13)
+ 
+End Function
+'Gonna need another one for serving LODs
+Sub AddEmailHyperLink()
+    
+    Dim rng As Range
+
+    With doc.Range.Find
+        .Text = "ashley.james@justice.gc.ca"
+        .Replacement.Text = ""
+        .Forward = True
+        .Wrap = wdFindAsk
+        .Format = False
+        .MatchCase = False
+        .MatchWholeWord = False
+        .MatchWildcards = False
+        .MatchSoundsLike = False
+        .MatchAllWordForms = False
+        .Execute
+        If .Found = True Then Set rng = .Parent
+    End With
+
+    ActiveDocument.Hyperlinks.Add Anchor:=rng, address:= _
+        "ashley.james@justice.gc.ca", SubAddress:="", ScreenTip:="", TextToDisplay:="ashley.james@justice.gc.ca"
+
+End Sub
+Sub changecolour()
+
+    doc.Range.Font.Color = -587137025
+   
+End Sub
+Sub fixBorders()
+
+    With doc.Tables(2)
+    
+        .Borders(wdBorderTop).LineStyle = wdLineStyleNone
+        .Borders(wdBorderLeft).LineStyle = wdLineStyleNone
+        .Borders(wdBorderBottom).LineStyle = wdLineStyleNone
+        .Borders(wdBorderRight).LineStyle = wdLineStyleNone
+        .Borders(wdBorderVertical).LineStyle = wdLineStyleNone
+        .Borders(wdBorderDiagonalDown).LineStyle = wdLineStyleNone
+        .Borders(wdBorderDiagonalUp).LineStyle = wdLineStyleNone
+    End With
+    
+    With doc.Paragraphs(ActiveDocument.Range(0, ActiveDocument.Tables(2).Range.End).Paragraphs.Count + 1).Range.Borders(wdBorderTop)
+        .LineStyle = Options.DefaultBorderLineStyle
+        .LineWidth = Options.DefaultBorderLineWidth
+        .Color = Options.DefaultBorderColor
+    End With
+
+End Sub
+Sub saveLocal()
+'Save local copy for attachments
+
+    ChangeFileOpenDirectory "C:\Users\evasmith\Desktop\"
+    ActiveDocument.SaveAs2 filename:=ActiveDocument.name, FileFormat:= _
+    wdFormatXMLDocument, LockComments:=False, Password:="", AddToRecentFiles _
+    :=True, WritePassword:="", ReadOnlyRecommended:=False, EmbedTrueTypeFonts _
+    :=False, SaveNativePictureFormat:=False, SaveFormsData:=False, _
+       SaveAsAOCELetter:=False, CompatibilityMode:=12
+       
+    docFileName = ActiveDocument.fullname
+End Sub
+Sub DeleteCurrentDoc()
+    Documents(docFileName).Close savechanges:=wdDoNotSaveChanges
+    Kill (docFileName)
+    
+    'Tidy up and close Word (Optional Line, delete if necessary)
+    'Application.Quit
+End Sub
+Function GetAddressRng() As Range
+    Dim i As Integer
+    Dim j As Integer
+    Dim p As Paragraph
+    
+    Set GetAddressRng = doc.Paragraphs(27).Range
+    
+    i = doc.Range(0, setRange(doc, "Dear " & "*" & ":", 0, 0).End).Paragraphs.Count 'wildcard because text is different for transfers than for closes
+
+    Do Until j = i - 3
+        j = doc.Range(0, GetAddressRng.End).Paragraphs.Count
+        GetAddressRng.MoveEnd Unit:=wdParagraph, Count:=1
+    Loop
+    
+    For Each p In GetAddressRng.Paragraphs
+        If p.Range.Text = Chr(13) Then
+            p.Range.Delete
+        End If
+    Next p
+    
+End Function
+Sub getAddressRngTestingAgain()
+    Dim rng As Range
+    Set doc = ActiveDocument
+    
+    Set rng = GetAddressRng
+    rng.Select
+End Sub
+Sub getDearRng()
+Dim rng As Range
+Dim i As Integer
+Set doc = ActiveDocument
+
+i = doc.Range(0, setRange(doc, "Dear :", 0, 0).End).Paragraphs.Count
+
+Debug.Print (i)
+
+End Sub
+Function salutation() As String
+
+    If InStr(1, docType, "CLOSE_REPORT") > 0 Then
+    salutation = "Dear " & LOfullName & ":" & Chr(13) & Chr(13)
+Else
+    salutation = "Dear Sir/Madam:" & Chr(13) & Chr(13)
+End If
+
+End Function
+Function setRange(searchRange As Object, searchStr As String, startMove As Integer, endMove As Integer) As Range
+    With searchRange.Range.Find
+        .Text = searchStr
+        .Replacement.Text = ""
+        .Forward = True
+        .Wrap = wdFindContinue
+        .Format = False
+        .MatchCase = False
+        .MatchWholeWord = False
+        .MatchWildcards = True
+        .MatchSoundsLike = False
+        .MatchAllWordForms = False
+        .Execute
+        If .Found = True Then Set setRange = .Parent
+    End With
+        setRange.MoveStart Unit:=wdCharacter, Count:=startMove
+        setRange.MoveEnd Unit:=wdCharacter, Count:=endMove
+
+End Function
+
+Function getLOFullName(nameStr As String) As String
+    Dim fname As String
+    Dim lName As String
+    Dim str As String
+    Dim i As Integer
+    getLOFullName = getLOfirstName(nameStr) & " " & getLOlastName(nameStr)
+End Function
+Function getLOfirstName(nameStr As String) As String
+    Dim str As String
+    Dim i As Integer
+    str = Mid(nameStr, 1, (Len(nameStr) - 17))
+    i = InStr(1, str, ",")
+    getLOfirstName = Mid(str, i + 2, Len(str))
+End Function
+Function getLOlastName(nameStr As String) As String
+    Dim str As String
+    Dim i As Integer
+    str = Mid(nameStr, 1, (Len(nameStr) - 17))
+    i = InStr(1, str, ",")
+    getLOlastName = Mid(str, 1, i - 1)
+End Function
+Function getLOfirstShort(fname As String) As String
+    Dim str As String
+    Dim i As Integer
+    
+    str = fname
+    i = InStr(1, str, " ")
+    
+    Do Until i = 0
+        str = Mid(str, 1, i - 1)
+        i = InStr(1, str, " ")
+    Loop
+    
+    getLOfirstShort = str
+End Function
+
+Sub FillClosingForm(fileNum As String, fileTitle As String, counselName As String, finalDate As Date)
+    Dim OLECont As InlineShape
+    Dim obj As Object
+    Dim i As Integer
+    Dim txtValue(1 To 10) As String
+     
+    i = ActiveDocument.InlineShapes.Count
+    
+    txtValue(1) = "ARO TAX"
+    txtValue(2) = fileNum
+    txtValue(3) = fileTitle
+    txtValue(4) = ""
+    txtValue(5) = ""
+    txtValue(6) = ""
+    txtValue(7) = ""
+    txtValue(8) = counselName
+    txtValue(9) = "Counsel"
+    txtValue(10) = Format(Date, "yyyy-mm-dd")
+    
+    For i = 1 To 10
+        Set obj = ActiveDocument.InlineShapes(i).OLEFormat.Object
+        obj.Text = txtValue(i)
+    Next i
+
+    Call printClosingForm
+    
+    ActiveDocument.Close savechanges:=wdDoNotSaveChanges
+End Sub
+Sub printClosingForm()
+Application.PrintOut filename:="", copies:=1, Range:=wdPrintRangeOfPages, Pages:="1"
+End Sub
+Sub getfullnameAgain()
+
+Debug.Print (ActiveDocument.fullname)
+End Sub
+
+
+

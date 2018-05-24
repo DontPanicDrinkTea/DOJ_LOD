@@ -1,0 +1,41 @@
+Option Explicit
+
+Sub SaveNewList(nameStr As String)
+
+    ActiveWorkbook.SaveAs fileName:=nameStr, _
+        FileFormat:=xlOpenXMLWorkbookMacroEnabled, CreateBackup:=False
+
+End Sub
+
+Sub ClearContent()
+
+     Dim lstObj1 As ListObject
+     Dim lstObj2 As ListObject
+     Dim lstObj3 As ListObject
+     Dim i As Integer
+     
+     Set lstObj1 = Sheets("Sheet2").ListObjects("Table2")
+     Set lstObj2 = Sheets("Sheet2").ListObjects("Table3")
+     Set lstObj3 = Sheets("Sheet3").ListObjects("Table4")
+     
+     With lstObj1
+         .DataBodyRange.ClearContents
+         .Resize lstObj1.Range.Resize(2, .Range.Columns.Count)
+     End With
+     
+     With lstObj2
+         .DataBodyRange.ClearContents
+         .Resize lstObj2.Range.Resize(2, .Range.Columns.Count)
+     End With
+
+     With lstObj3
+         .DataBodyRange.ClearContents
+         .Resize lstObj3.Range.Resize(2, .Range.Columns.Count)
+     End With
+     
+    For i = 2 To 6
+        Worksheets("Sheet2").Range("E" & i).ClearContents
+    Next i
+
+End Sub
+
